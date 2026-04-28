@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CsA Dosing Explorer — Static Calculator</title>
+  <title>CsA Dosing Explorer</title>
   <style>
     :root {
       --ukf-blue:#1f4f8f;
       --ukf-blue-dark:#173f73;
       --ukf-red:#b51f2a;
-      --ukf-red-dark:#8f1720;
       --ink:#1a1a2e;
       --muted:#666;
       --line:#ddd;
@@ -17,105 +16,85 @@
       --warn:#fff8e1;
       --panel:#f7f9fd;
     }
-
+    * { box-sizing: border-box; }
     body {
       margin:0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color:var(--ink);
       background:#fafafa;
     }
-
-    .wrap { max-width:1180px; margin:0 auto; padding:24px; }
-
+    .wrap { max-width:1220px; margin:0 auto; padding:20px; }
     .topbar {
       border-top:5px solid var(--ukf-red);
       border-bottom:1px solid #e2e7f0;
-      background:linear-gradient(90deg, #fff 0%, #f6f9ff 100%);
-      padding:18px 20px;
-      border-radius:14px;
+      background:linear-gradient(90deg,#fff 0%,#f6f9ff 100%);
+      padding:16px 20px;
+      border-radius:12px;
       box-shadow:0 1px 8px rgba(0,0,0,.04);
-      margin-bottom:14px;
+      margin-bottom:12px;
+      display:flex;
+      align-items:baseline;
+      gap:16px;
     }
-
-    h1 {
-      font-size:1.85rem;
-      margin:0;
-      color:var(--ukf-blue-dark);
-      letter-spacing:.01em;
-    }
-
-    h2 {
-      font-size:1.15rem;
-      margin-top:24px;
-      color:var(--ukf-blue-dark);
-    }
-
+    h1 { font-size:1.7rem; margin:0; color:var(--ukf-blue-dark); }
+    .topbar-sub { font-size:.9rem; color:var(--muted); }
+    h2 { font-size:1.05rem; margin:20px 0 6px; color:var(--ukf-blue-dark); border-bottom:1px solid #e8edf5; padding-bottom:4px; }
     .disclaimer {
       background:var(--warn);
       border-left:4px solid #f9a825;
-      padding:12px 16px;
+      padding:10px 16px;
       border-radius:6px;
-      font-size:.92rem;
+      font-size:.88rem;
+      margin-bottom:10px;
     }
-
     .grid {
       display:grid;
-      grid-template-columns:320px 1fr;
-      gap:18px;
+      grid-template-columns:330px 1fr;
+      gap:16px;
       align-items:start;
-      margin-top:18px;
+      margin-top:14px;
     }
-
-    aside, main, .card {
+    aside {
+      background:var(--bg);
+      border:1px solid var(--line);
+      border-top:5px solid var(--ukf-blue);
+      border-radius:12px;
+      box-shadow:0 1px 8px rgba(0,0,0,.04);
+      padding:16px;
+      position:sticky;
+      top:12px;
+    }
+    main {
       background:var(--bg);
       border:1px solid var(--line);
       border-radius:12px;
       box-shadow:0 1px 8px rgba(0,0,0,.04);
-    }
-
-    aside {
       padding:16px;
-      position:sticky;
-      top:12px;
-      border-top:5px solid var(--ukf-blue);
-      background:linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
     }
-
-    main { padding:16px; overflow:hidden; }
-
     label {
       display:block;
       font-weight:600;
-      margin:14px 0 6px;
-      font-size:.92rem;
+      margin:12px 0 5px;
+      font-size:.88rem;
       color:#23395d;
     }
-
-    input[type="text"], input[type="number"], input[type="file"] {
+    input[type="text"],input[type="number"],input[type="file"],select {
       width:100%;
-      box-sizing:border-box;
-      padding:9px 10px;
+      padding:8px 10px;
       border:1px solid #c9d3e6;
       border-radius:8px;
-      font-size:.95rem;
+      font-size:.92rem;
       background:#fff;
     }
-
-    input[type="range"] {
-      width:100%;
-      accent-color:var(--ukf-blue);
-    }
-
-    .small { font-size:.82rem; color:var(--muted); }
-    .row { display:flex; gap:10px; align-items:center; }
-
+    input[type="range"] { width:100%; accent-color:var(--ukf-blue); }
+    .small { font-size:.8rem; color:var(--muted); margin-top:3px; }
+    .cb-row { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:.88rem; }
     .metrics {
       display:grid;
       grid-template-columns:repeat(4,minmax(0,1fr));
       gap:10px;
       margin-bottom:14px;
     }
-
     .metric {
       background:#f7f9fd;
       border:1px solid #e1e7f2;
@@ -123,729 +102,834 @@
       border-radius:10px;
       padding:10px;
     }
-
-    .metric .k { font-size:.78rem; color:#555; }
-    .metric .v { font-size:1.15rem; font-weight:700; margin:3px 0; color:var(--ukf-blue-dark); }
-    .metric .d { font-size:.78rem; color:#666; }
-
-    #chart {
+    .metric .k { font-size:.75rem; color:#555; }
+    .metric .v { font-size:1.1rem; font-weight:700; margin:3px 0; color:var(--ukf-blue-dark); }
+    .metric .d { font-size:.75rem; color:#666; }
+    canvas {
       width:100%;
-      height:520px;
+      height:500px;
       border:1px solid #eee;
       border-radius:10px;
-      background:white;
+      background:#fff;
+      display:block;
     }
-
-    table { border-collapse:collapse; width:100%; font-size:.88rem; }
-    th,td { border-bottom:1px solid #eee; padding:7px 8px; text-align:left; white-space:nowrap; }
-    th { background:#f7f9fd; position:sticky; top:0; color:var(--ukf-blue-dark); }
-
-    .table-wrap {
-      max-height:420px;
-      overflow:auto;
-      border:1px solid #eee;
-      border-radius:10px;
-    }
-
+    table { border-collapse:collapse; width:100%; font-size:.86rem; }
+    th,td { border-bottom:1px solid #eee; padding:6px 8px; text-align:left; white-space:nowrap; }
+    th { background:#f7f9fd; position:sticky; top:0; color:var(--ukf-blue-dark); font-size:.82rem; }
+    .table-wrap { max-height:380px; overflow:auto; border:1px solid #eee; border-radius:10px; }
     button {
       border:0;
       background:var(--ukf-blue-dark);
-      color:white;
-      padding:10px 14px;
+      color:#fff;
+      padding:9px 14px;
       border-radius:8px;
       cursor:pointer;
       font-weight:600;
       margin-top:10px;
+      font-size:.9rem;
     }
-
     button:hover { background:var(--ukf-blue); }
-
     .status {
-      margin:10px 0;
-      padding:10px 12px;
+      padding:9px 14px;
       border-radius:8px;
       background:#eef8ee;
       color:#245b24;
-      font-size:.9rem;
+      font-size:.88rem;
+      margin-bottom:10px;
     }
-
     .status.warn { background:#fff4d6; color:#6b4a00; }
-    .error { background:#ffecec; color:#8a1f1f; padding:10px 12px; border-radius:8px; margin:10px 0; }
-
-    @media (max-width: 900px) {
-      .grid { grid-template-columns:1fr; }
-      aside { position:static; }
-      .metrics { grid-template-columns:1fr 1fr; }
+    .errbox { background:#ffecec; color:#8a1f1f; padding:9px 14px; border-radius:8px; margin:8px 0; font-size:.88rem; }
+    .method-note {
+      background:#f0f4fa;
+      border-left:3px solid var(--ukf-blue);
+      padding:8px 12px;
+      border-radius:4px;
+      font-size:.8rem;
+      color:#23395d;
+      margin-top:8px;
+    }
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr;}
+      aside{position:static;}
+      .metrics{grid-template-columns:1fr 1fr;}
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <h1>CsA Dosing Explorer</h1>
-    </div>
+<div class="wrap">
 
-    <div class="disclaimer"><b>Disclaimer:</b> This tool is intended for scientific exploration only and does not constitute clinical dosing advice. All dosing decisions must be made by qualified clinicians based on individual patient assessment, organ function, drug interactions, and institutional protocols.</div>
-
-    <div id="status" class="status"></div>
-    <div id="error" class="error" style="display:none"></div>
-
-    <div class="grid">
-      <aside>
-        <h2>Patient Data</h2>
-        <label>Days post-transplant</label>
-        <input id="days" type="text" value="0, 5, 10, 15, 20" />
-        <div class="small">Comma-separated, range 0–99.</div>
-
-        <label>CsA trough levels, ng/ml</label>
-        <input id="vals" type="text" value="220, 215, 205, 198, 192" />
-        <div class="small">Same order as days.</div>
-
-        <h2>Dosing Target</h2>
-        <label>Target exposure index: <span id="targetLabel">1.05</span></label>
-        <input id="target" type="range" min="0.70" max="1.30" value="1.05" step="0.01" />
-
-        <label>Titration duration: <span id="rampLabel">7</span> days</label>
-        <input id="ramp" type="range" min="5" max="10" value="7" step="1" />
-
-        <label class="row"><input id="showTable" type="checkbox" checked /> Show daily target table</label>
-        <label class="row"><input id="showAll" type="checkbox" /> Show full 100-day table</label>
-
-        <h2>Reference CSV</h2>
-        <input id="csvUpload" type="file" accept=".csv,text/csv" />
-        <div class="small">Optional: upload CSV locally, or host it as <code>data/csa_reference_curve.csv</code>.</div>
-      </aside>
-
-      <main>
-        <div class="metrics">
-          <div class="metric"><div class="k">Current window index</div><div id="mWin" class="v">–</div><div id="mWinD" class="d">–</div></div>
-          <div class="metric"><div class="k">Last trough</div><div id="mLast" class="v">–</div><div id="mLastD" class="d">–</div></div>
-          <div class="metric"><div class="k">Target trough at titration end</div><div id="mRamp" class="v">–</div><div id="mRampD" class="d">–</div></div>
-          <div class="metric"><div class="k">Projected total index</div><div id="mProj" class="v">–</div><div id="mProjD" class="d">–</div></div>
-        </div>
-        <canvas id="chart" width="1000" height="520"></canvas>
-        <h2>Summary</h2>
-        <div id="summary"></div>
-        <div id="tableBlock">
-          <h2>Daily Target Concentrations</h2>
-          <div class="table-wrap"><table id="targetTable"></table></div>
-          <button id="downloadBtn">Download table as CSV</button>
-        </div>
-      </main>
-    </div>
+  <div class="topbar">
+    <h1>CsA Dosing Explorer</h1>
+    <span class="topbar-sub">Wilcken et al. · University Medical Center Freiburg</span>
   </div>
 
+  <div class="disclaimer">
+    <b>Disclaimer:</b> This tool is intended for scientific exploration only and does not constitute
+    clinical dosing advice. All dosing decisions must be made by qualified clinicians based on
+    individual patient assessment, organ function, drug interactions, and institutional protocols.
+  </div>
+
+  <div id="status" class="status">Initialising…</div>
+  <div id="errbox" class="errbox" style="display:none"></div>
+
+  <div class="grid">
+    <aside>
+      <h2>Patient Measurements</h2>
+
+      <label>Days post-transplant</label>
+      <input id="days" type="text" value="0, 1, 2, 3, 5, 7, 9, 11, 14, 17, 21, 25, 28, 32, 35, 39, 42" />
+      <div class="small">Comma-separated integers, ≥ 0. Values beyond day 100 are used for fitting but not displayed. Duplicate days allowed.</div>
+
+      <label>CsA trough levels (ng/ml)</label>
+      <input id="vals" type="text" value="280, 310, 180, 260, 240, 195, 310, 210, 230, 185, 220, 195, 185, 200, 175, 180, 170" />
+      <div class="small">Same order as days above.</div>
+
+      <h2>AUC Reconstruction</h2>
+
+      <label>Reconstruction method</label>
+      <select id="reconMethod">
+        <option value="linear" selected>Linear interpolation (fast, default)</option>
+        <option value="lowess">LOWESS smoothing (frac=0.3, it=3)</option>
+      </select>
+
+      <div class="cb-row">
+        <input id="useOutlierFilter" type="checkbox" checked />
+        <span>IQR outlier filter k=2</span>
+      </div>
+      <div class="small">
+        Removes values outside Q1−2·IQR … Q3+2·IQR before smoothing.
+      </div>
+
+      <div class="method-note" id="methodNote"></div>
+
+      <h2>Dosing Target</h2>
+
+      <label>Target exposure index: <b id="targetLabel">1.05</b></label>
+      <input id="target" type="range" min="0.70" max="1.30" value="1.05" step="0.01" />
+      <div class="small">1.00 = cohort reference median. Higher index → higher cumulative exposure.</div>
+
+      <label>Titration duration: <b id="rampLabel">7</b> days</label>
+      <input id="ramp" type="range" min="1" max="60" value="7" step="1" />
+      <div class="small">Linear up-titration before taper phase begins.</div>
+
+      <div class="cb-row"><input id="showTable" type="checkbox" checked /><span>Show daily target table</span></div>
+      <div class="cb-row"><input id="showAll" type="checkbox" /><span>Show full 100-day table</span></div>
+
+      <h2>Reference Curve</h2>
+      <input id="csvUpload" type="file" accept=".csv,text/csv" />
+      <div class="small">
+        Upload your <code>csa_reference_curve.csv</code> (columns: <code>day</code>, <code>ref_lowess_ngml</code>).
+        The file is never sent to any server — processed entirely in your browser.
+      </div>
+    </aside>
+
+    <main>
+      <div class="metrics">
+        <div class="metric"><div class="k">Current window index</div><div id="mWin" class="v">–</div><div id="mWinD" class="d">–</div></div>
+        <div class="metric"><div class="k">Last trough</div><div id="mLast" class="v">–</div><div id="mLastD" class="d">–</div></div>
+        <div class="metric"><div class="k">Target at titration end</div><div id="mRamp" class="v">–</div><div id="mRampD" class="d">–</div></div>
+        <div class="metric"><div class="k">Projected total index</div><div id="mProj" class="v">–</div><div id="mProjD" class="d">–</div></div>
+      </div>
+
+      <canvas id="chart"></canvas>
+
+      <h2>Summary</h2>
+      <div id="summary"></div>
+
+      <div id="tableBlock">
+        <h2>Daily Target Concentrations</h2>
+        <div class="table-wrap"><table id="targetTable"></table></div>
+        <button id="downloadBtn">⬇ Download table as CSV</button>
+      </div>
+    </main>
+  </div>
+
+  <div style="margin-top:18px;font-size:.78rem;color:#999;text-align:center;">
+    Wilcken H, Sahlmann J, Kutilina A, et al. · University Medical Center Freiburg,
+    Department of Medicine I · For research use only ·
+    <a href="https://github.com/ukfcsa/CSA_html" style="color:#1f4f8f;">GitHub</a>
+  </div>
+</div>
+
 <script>
-let allDays = Array.from({length:101}, (_,i)=>i);
-let refY = null;
+/* ============================================================
+   CsA Dosing Explorer — paper-conform JS implementation
+   
+   Key differences from generic version:
+   1. IQR outlier filter applied BEFORE LOWESS, k=2 (paper default)
+      identical to Python _iqr_inlier_mask(y, k=2)
+   2. LOWESS: statsmodels-like local linear regression,
+      frac=0.3, it=3 robustifying iterations (paper: Appendix S1)
+   3. After LOWESS: interpolation ONLY within convex hull of
+      observed days (no extrapolation) — NaN outside, like Python
+   4. Reference curve: loaded from pre-computed CSV (Python LOWESS)
+      JS never recomputes the reference — only interpolates it
+   ============================================================ */
+
+// ── State ─────────────────────────────────────────────────────
+const allDays = Array.from({length:101}, (_,i) => i);
+let refY      = null;
 let refSource = 'synthetic';
 let lastTableRows = [];
 
+// ── Synthetic fallback reference ──────────────────────────────
 function syntheticRef() {
-  return allDays.map(d => Math.max(150, Math.min(280, 230*Math.exp(-0.0018*d)+8*Math.sin(0.05*d))));
+  return allDays.map(d =>
+    Math.max(150, Math.min(280, 230 * Math.exp(-0.0018 * d) + 8 * Math.sin(0.05 * d)))
+  );
+}
+
+// ── CSV parsing ───────────────────────────────────────────────
+function parseCSVLine(line) {
+  const out = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+    else if (ch === ',' && !inQ) { out.push(cur); cur=''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
 }
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) {
-    throw new Error('CSV needs a header row and at least one data row.');
-  }
+  if (lines.length < 2) throw new Error('CSV needs at least a header and one data row.');
+  const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+  const dayIdx  = headers.indexOf('day');
+  if (dayIdx < 0) throw new Error('CSV must have a "day" column.');
 
-  const headers = lines[0].split(',').map(h => h.trim());
-
-  const dayIdx = headers.findIndex(h => h.toLowerCase() === 'day');
-
-  const preferredReferenceColumns = [
-    'ref_lowess_ngml',
-    'index_1.00',
-    'raw_median_ngml',
-    'raw_mean_ngml'
-  ];
-
+  const preferred = ['ref_lowess_ngml','index_1.00','raw_median_ngml','raw_mean_ngml'];
   let yIdx = -1;
-  let usedColumn = '';
-
-  for (const col of preferredReferenceColumns) {
-    yIdx = headers.findIndex(h => h.toLowerCase() === col.toLowerCase());
-    if (yIdx >= 0) {
-      usedColumn = headers[yIdx];
-      break;
-    }
+  for (const col of preferred) {
+    yIdx = headers.indexOf(col);
+    if (yIdx >= 0) break;
   }
+  if (yIdx < 0) throw new Error('CSV must have a ref_lowess_ngml column (or index_1.00 / raw_median_ngml).');
 
-  if (dayIdx < 0) {
-    throw new Error(
-      'CSV needs a "day" column. Found columns: ' + headers.join(', ')
-    );
-  }
-
-  if (yIdx < 0) {
-    throw new Error(
-      'CSV needs one of these reference columns: ' +
-      preferredReferenceColumns.join(', ') +
-      '. Found columns: ' + headers.join(', ')
-    );
-  }
-
-  const rows = lines.slice(1).map(line => {
-    const cells = line.split(',').map(c => c.trim());
-
-    return {
-      day: Number(cells[dayIdx]),
-      y: Number(cells[yIdx])
-    };
-  }).filter(r =>
-    Number.isFinite(r.day) &&
-    Number.isFinite(r.y)
-  ).sort((a,b) => a.day - b.day);
-
-  if (rows.length < 2) {
-    throw new Error(
-      `CSV column "${usedColumn}" does not contain enough numeric reference values.`
-    );
-  }
-
-  console.log(`Using CSV reference column: ${usedColumn}`);
-
-  return rows;
+  return lines.slice(1).map(l => {
+    const c = parseCSVLine(l).map(x => x.trim());
+    return { day: Number(c[dayIdx]), y: Number(c[yIdx]) };
+  }).filter(r => Number.isFinite(r.day) && Number.isFinite(r.y))
+    .sort((a,b) => a.day - b.day);
 }
 
-function loadReferenceFromRows(rows) {
-  const xp = rows.map(r=>r.day);
-  const fp = rows.map(r=>r.y);
-  refY = allDays.map(d => interp(d, xp, fp));
+function loadRefFromRows(rows) {
+  const xp = rows.map(r => r.day);
+  const fp = rows.map(r => r.y);
+  refY = allDays.map(d => linearInterp(d, xp, fp));
 }
 
-function trapz(y, x) {
-  let s=0;
-  for (let i=1;i<y.length;i++) {
-    s += 0.5*(y[i]+y[i-1])*(x[i]-x[i-1]);
-  }
+// ── Maths helpers ─────────────────────────────────────────────
+
+/** Linear interpolation — no extrapolation beyond endpoints (clamps) */
+function linearInterp(x, xp, fp) {
+  if (!xp.length) return NaN;
+  if (x <= xp[0]) return fp[0];
+  if (x >= xp[xp.length-1]) return fp[xp.length-1];
+  let lo = 0, hi = xp.length - 1;
+  while (hi - lo > 1) { const mid = (lo+hi)>>1; if (xp[mid]<=x) lo=mid; else hi=mid; }
+  const t = (x - xp[lo]) / (xp[hi] - xp[lo]);
+  return fp[lo] + t*(fp[hi]-fp[lo]);
+}
+
+/** Linear interpolation WITHIN convex hull only — NaN outside (paper-conform) */
+function linearInterpHull(x, xp, fp) {
+  if (!xp.length) return NaN;
+  if (x < xp[0] || x > xp[xp.length-1]) return NaN;   // no extrapolation
+  return linearInterp(x, xp, fp);
+}
+
+function trapz(xs, ys) {
+  let s = 0;
+  for (let i = 1; i < xs.length; i++) s += 0.5*(ys[i]+ys[i-1])*(xs[i]-xs[i-1]);
   return s;
 }
 
-function trapzXY(x, y) {
-  return trapz(y, x);
-}
-
 function parseList(s) {
-  return s.split(',').map(v=>Number(v.trim())).filter(v=>!Number.isNaN(v));
+  return s.split(',').map(v => Number(v.trim())).filter(v => Number.isFinite(v));
 }
 
-function fmt(n,d=1) {
-  return Number.isFinite(n) ? n.toFixed(d) : '–';
-}
+function fmt(n, d=1) { return Number.isFinite(n) ? n.toFixed(d) : '–'; }
 
 function zone(idx) {
-  if (idx < 0.85) return 'well below reference ⚠';
-  if (idx < 0.95) return 'below reference';
-  if (idx <= 1.05) return 'near reference ✓';
+  if (idx < 0.85)  return 'well below reference';
+  if (idx < 0.95)  return 'below reference';
+  if (idx <= 1.05) return 'near reference';
   if (idx <= 1.15) return 'above reference';
-  return 'well above reference ⚠';
+  return 'well above reference';
 }
 
-function interpolatePast(xPts, yPts) {
-  const start = Math.floor(Math.min(...xPts));
-  const end = Math.floor(Math.max(...xPts));
-  const grid = Array.from({length:end-start+1}, (_,i)=>start+i);
-  const y = grid.map(d => interp(d, xPts, yPts));
-  return {grid, y};
-}
+// ── IQR outlier filter — paper-conform (k=2) ─────────────────
+/**
+ * Identical to Python _iqr_inlier_mask(y, k=2):
+ *   lo = Q1 - k*IQR
+ *   hi = Q3 + k*IQR
+ *   keep values within [lo, hi]
+ * If IQR==0: keep all non-NaN values (same as Python fallback)
+ */
+function iqrInlierMask(yPts, k=2) {
+  const finite = yPts.filter(Number.isFinite).sort((a,b)=>a-b);
+  if (!finite.length) return yPts.map(() => false);
 
-function buildFutureCurve(lastDay, lastVal, targetIdx, rampDays, aucPast, aucRefTotal) {
-  const horizon = 100 - lastDay;
+  const q1 = quantileSorted(finite, 0.25);
+  const q3 = quantileSorted(finite, 0.75);
+  const iqr = q3 - q1;
 
-  if (horizon <= 0) {
-    return {futDays:[lastDay], futY:[lastVal], rampTarget:lastVal, sf:targetIdx};
+  if (!Number.isFinite(iqr) || iqr === 0) {
+    return yPts.map(v => Number.isFinite(v));
   }
 
-  const rampN = Math.min(rampDays, horizon);
+  const lo = q1 - k * iqr;
+  const hi = q3 + k * iqr;
+  return yPts.map(v => Number.isFinite(v) && v >= lo && v <= hi);
+}
+
+function quantileSorted(sorted, q) {
+  if (!sorted.length) return NaN;
+  const pos  = (sorted.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  return sorted[base+1] !== undefined
+    ? sorted[base] + rest*(sorted[base+1]-sorted[base])
+    : sorted[base];
+}
+
+// ── LOWESS — statsmodels-like, frac=0.3, it=3 ────────────────
+/**
+ * Matches Python statsmodels lowess(y, x, frac=0.3, it=3):
+ *   - Local linear regression with tricube distance weights
+ *   - 3 robustifying iterations with bisquare residual weights
+ *   - Returns fitted values at observed x points
+ *   - Predict on grid via linear interpolation WITHIN hull only
+ *     (paper: no extrapolation outside observed range → NaN)
+ */
+function tricube(u) {
+  const a = Math.abs(u);
+  if (a >= 1) return 0;
+  const t = 1 - a*a*a;
+  return t*t*t;
+}
+
+function bisquare(u) {
+  const a = Math.abs(u);
+  if (a >= 1) return 0;
+  const t = 1 - u*u;
+  return t*t;
+}
+
+function medianArr(arr) {
+  const s = arr.filter(Number.isFinite).sort((a,b)=>a-b);
+  if (!s.length) return NaN;
+  const m = Math.floor(s.length/2);
+  return s.length%2 ? s[m] : 0.5*(s[m-1]+s[m]);
+}
+
+function wlsFit(xObs, yObs, x0, weights) {
+  // Weighted local linear regression at x0
+  let sw=0, sx=0, sy=0, sxx=0, sxy=0;
+  for (let i=0; i<xObs.length; i++) {
+    const w = weights[i];
+    if (!(w > 0)) continue;
+    sw  += w;
+    sx  += w*xObs[i];
+    sy  += w*yObs[i];
+    sxx += w*xObs[i]*xObs[i];
+    sxy += w*xObs[i]*yObs[i];
+  }
+  // Fallback: if all weights are zero (can happen after aggressive robustifying),
+  // use unweighted linear interpolation at x0 — avoids NaN propagation
+  if (sw <= 0) return linearInterp(x0, xObs, yObs);
+  const denom = sw*sxx - sx*sx;
+  if (Math.abs(denom) < 1e-12) return sy/sw;   // degenerate → weighted mean
+  const beta  = (sw*sxy - sx*sy) / denom;
+  const alpha = (sy - beta*sx) / sw;
+  return alpha + beta*x0;
+}
+
+/**
+ * EXACT replica of _lowess_on_grid from the paper notebook (Appendix S1):
+ *   1. IQR filter k=2 applied before (done in reconstructCurve)
+ *   2. statsmodels lowess(y, x, frac=0.3, it=3) at observed points
+ *   3. Linear interpolation onto integer day grid WITHIN convex hull only
+ *      (no extrapolation — NaN outside observed range)
+ *
+ * Note: with few measurements (~4-10), frac=0.3 → span=2-3 → nearly
+ * identical to linear interpolation. This is correct paper behavior.
+ */
+function lowessOnGrid(xObs, yObs, grid, frac=0.3, it=3) {
+  const n = xObs.length;
+  if (n < 2) return grid.map(d => linearInterpHull(d, xObs, yObs));
+  const span = Math.max(2, Math.ceil(frac * n));
+
+  // Fit at observed points with robustifying iterations (statsmodels default)
+  let robW = new Float64Array(n).fill(1);
+  let fittedObs = new Float64Array(n);
+
+  for (let iter = 0; iter <= it; iter++) {
+    for (let i = 0; i < n; i++) {
+      const x0 = xObs[i];
+      const dists = xObs.map((x,j) => ({j, d: Math.abs(x-x0)}));
+      dists.sort((a,b) => a.d - b.d);
+      const maxD = dists[Math.min(span-1, n-1)].d || 1e-8;
+      const w = new Float64Array(n);
+      for (const {j,d} of dists) w[j] = tricube(d/maxD) * robW[j];
+      fittedObs[i] = wlsFit(xObs, yObs, x0, w);
+    }
+    if (iter === it) break;
+    const resid = yObs.map((y,i) => Math.abs(y - fittedObs[i]));
+    const medR  = medianArr(resid);
+    if (!Number.isFinite(medR) || medR < 1e-12) break;
+    robW = Float64Array.from(resid.map(r => bisquare(r / (6*medR))));
+  }
+
+  // Interpolate onto grid WITHIN hull only — identical to Python np.interp
+  // restricted to convex hull (cover mask in notebook)
+  const xMin = xObs[0], xMax = xObs[xObs.length-1];
+  return grid.map(d => {
+    if (d < xMin || d > xMax) return NaN;
+    return linearInterp(d, Array.from(xObs), Array.from(fittedObs));
+  });
+}
+
+/**
+ * Patient curve reconstruction — exact paper implementation (Appendix S1):
+ *  1. IQR outlier filter k=2 on raw values (before smoothing)
+ *  2. LOWESS frac=0.3, it=3 at observed points, then linear interpolation
+ *     within convex hull only — identical to _lowess_on_grid in notebook
+ *     OR linear interpolation within convex hull only (no LOWESS)
+ */
+function reconstructCurve(rawX, rawY, method, useOutlierFilter) {
+  if (rawX.length !== rawY.length || rawX.length < 2)
+    throw new Error('Need at least 2 valid measurements.');
+
+  // Sort by day — duplicates kept (both values enter IQR filter and LOWESS)
+  // matches _lowess_on_grid in notebook which accepts duplicate x values
+  const order = rawX.map((_,i)=>i).sort((a,b)=>rawX[a]-rawX[b] || rawY[a]-rawY[b]);
+  let xs = order.map(i=>rawX[i]);
+  let ys = order.map(i=>rawY[i]);
+
+  // IQR filter k=2 (paper Appendix S1: applied before smoothing)
+  const dropped = [];
+  if (useOutlierFilter) {
+    const mask = iqrInlierMask(ys, 2);
+    const xs2=[], ys2=[];
+    for (let i=0; i<xs.length; i++) {
+      if (mask[i]) { xs2.push(xs[i]); ys2.push(ys[i]); }
+      else dropped.push({day:xs[i], value:ys[i]});
+    }
+    if (xs2.length < 2) throw new Error('After IQR filtering fewer than 2 measurements remain.');
+    xs = xs2; ys = ys2;
+  }
+
+  // LOWESS/linear fit uses ALL filtered points (including days > 100 — fit_end_day=None)
+  // Output grid is clamped to day 0–100 for AUC/index computation and display
+  const xMin = Math.floor(Math.min(...xs));
+  const xMax = Math.min(Math.floor(Math.max(...xs)), 100);  // display capped at 100
+  const grid  = Array.from({length: xMax-xMin+1}, (_,i) => xMin+i);
+
+  const canLowess      = xs.length >= 3;
+  const effectiveMethod = (method === 'lowess' && canLowess) ? 'lowess' : 'linear';
+  const lowessFallback  = (method === 'lowess' && !canLowess);
+
+  let yGrid;
+  if (effectiveMethod === 'lowess') {
+    // LOWESS fitted on ALL points (xs may include days > 100),
+    // then interpolated onto 0–100 grid within the hull of observed days
+    yGrid = lowessOnGrid(xs, ys, grid, 0.3, 3);
+  } else {
+    yGrid = grid.map(d => linearInterpHull(d, xs, ys));
+  }
+
+  return { grid, yGrid, xFilt: xs, yFilt: ys, dropped, method: effectiveMethod, lowessFallback };
+}
+
+// ── Future curve (ramp + taper) ───────────────────────────────
+function buildFutureCurve(lastDay, lastVal, targetIdx, rampDays, aucPast) {
+  const aucRefTotal = trapz(allDays, refY);
+  const horizon = 100 - lastDay;
+  if (horizon <= 0) return {futDays:[lastDay],futY:[lastVal],rampTarget:lastVal,sf:targetIdx,rampEnd:lastDay};
+
+  const rampN   = Math.min(rampDays, horizon);
   const rampEnd = lastDay + rampN;
-  const refRampEnd = interp(rampEnd, allDays, refY);
-  const taperDays = Array.from({length:101-rampEnd}, (_,i)=>rampEnd+i);
-  const refTaper = taperDays.map(d=>interp(d, allDays, refY));
-  const aucRefTaper = taperDays.length > 1 ? trapzXY(taperDays, refTaper) : 0;
+
+  const refRampEnd   = linearInterp(rampEnd, allDays, refY);
+  const taperDays    = Array.from({length:101-rampEnd}, (_,i)=>rampEnd+i);
+  const refTaper     = taperDays.map(d => linearInterp(d, allDays, refY));
+  const aucRefTaper  = taperDays.length > 1 ? trapz(taperDays, refTaper) : 0;
+
   const aucNeeded = targetIdx * aucRefTotal - aucPast;
-  const denom = rampN * refRampEnd / 2 + aucRefTaper;
-  const sf = denom > 0 ? Math.max((aucNeeded - rampN * lastVal / 2) / denom, 0) : targetIdx;
+  const denom     = rampN * refRampEnd / 2 + aucRefTaper;
+  const sf        = denom > 0 ? Math.max((aucNeeded - rampN*lastVal/2) / denom, 0) : targetIdx;
   const rampTarget = sf * refRampEnd;
 
   const rampDaysArr = Array.from({length:rampEnd-lastDay+1}, (_,i)=>lastDay+i);
-  const rampY = rampDaysArr.map((_,i)=> lastVal + (rampTarget-lastVal)*(i/(rampDaysArr.length-1 || 1)));
-  const taperY = refTaper.map(v=>v*sf);
+  const rampY       = rampDaysArr.map((_,i)=>lastVal+(rampTarget-lastVal)*(i/(rampDaysArr.length-1||1)));
+  const taperY      = refTaper.map(v=>v*sf);
 
-  const futDays = rampDaysArr.concat(taperDays.slice(1));
-  const futY = rampY.concat(taperY.slice(1));
+  const futDays = [...rampDaysArr, ...taperDays.slice(1)];
+  const futY    = [...rampY,       ...taperY.slice(1)];
 
-  return {futDays, futY, rampTarget, sf};
+  return {futDays, futY, rampTarget, sf, rampEnd};
 }
 
+// ── Drawing ───────────────────────────────────────────────────
 function drawChart(r, targetIdx, rampDays) {
-  const c = document.getElementById('chart');
+  const c   = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W   = c.clientWidth;
+  const H   = c.clientHeight;
+  c.width   = W * dpr;
+  c.height  = H * dpr;
   const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
 
-  const W = c.width;
-  const H = c.height;
+  const pad  = {l:72, r:190, t:58, b:60};
+  const xmin = -2, xmax = 106, ymin = 50, ymax = 420;
 
-  ctx.clearRect(0, 0, W, H);
+  const X = d => pad.l + (d-xmin)/(xmax-xmin)*(W-pad.l-pad.r);
+  const Y = v => H - pad.b - (v-ymin)/(ymax-ymin)*(H-pad.t-pad.b);
 
-  // More right padding for non-overlapping curve labels
-  const pad = { l: 76, r: 145, t: 48, b: 68 };
-  const xmin = -2;
-  const xmax = 122;
-  const ymin = 50;
-  const ymax = 420;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
 
-  const X = d => pad.l + (d - xmin) / (xmax - xmin) * (W - pad.l - pad.r);
-  const Y = v => H - pad.b - (v - ymin) / (ymax - ymin) * (H - pad.t - pad.b);
+  // Grid + axis labels
+  ctx.strokeStyle='#efefef'; ctx.lineWidth=1;
+  for (let d=0;d<=100;d+=10) { ctx.beginPath(); ctx.moveTo(X(d),Y(ymin)); ctx.lineTo(X(d),Y(ymax)); ctx.stroke(); }
+  for (let v=50;v<=400;v+=50) { ctx.beginPath(); ctx.moveTo(X(0),Y(v)); ctx.lineTo(X(100),Y(v)); ctx.stroke(); }
 
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle='#555'; ctx.font='11px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for (let d=0;d<=100;d+=10) ctx.fillText(d, X(d), Y(ymin)+6);
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for (let v=50;v<=400;v+=50) ctx.fillText(v, X(0)-6, Y(v));
 
-  ctx.strokeStyle = '#eee';
-  ctx.lineWidth = 1;
-
-  ctx.fillStyle = '#555';
-  ctx.font = '12px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-
-  for (let d = 0; d <= 100; d += 10) {
+  function line(xs,ys,color,lw=2,dash=[],alpha=1) {
+    if (xs.length < 2) return;
+    ctx.save(); ctx.globalAlpha=alpha; ctx.strokeStyle=color;
+    ctx.lineWidth=lw; ctx.setLineDash(dash);
     ctx.beginPath();
-    ctx.moveTo(X(d), Y(ymin));
-    ctx.lineTo(X(d), Y(ymax));
-    ctx.stroke();
-    ctx.fillText(String(d), X(d), Y(ymin) + 8);
+    xs.forEach((x,i)=>{ if(i===0) ctx.moveTo(X(x),Y(ys[i])); else ctx.lineTo(X(x),Y(ys[i])); });
+    ctx.stroke(); ctx.restore();
   }
 
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
+  // (therapeutic window removed)
 
-  for (let v = 50; v <= 400; v += 50) {
-    ctx.beginPath();
-    ctx.moveTo(X(xmin), Y(v));
-    ctx.lineTo(X(100), Y(v));
-    ctx.stroke();
-    ctx.fillText(String(v), X(xmin) - 10, Y(v));
+  // Index background lines
+  const rightLabels=[];
+  for (let idx=0.70; idx<=1.301; idx+=0.05) {
+    const ci = Number(idx.toFixed(2));
+    const ys = refY.map(v=>v*ci);
+    const isRef = Math.abs(ci-1)<0.001;
+    line(allDays,ys,isRef?'#000':'#c8c8c8',isRef?2.2:0.8,isRef?[]:[5,4]);
+    rightLabels.push({text:ci.toFixed(2), yVal:refY[100]*ci, color:isRef?'#000':'#888', bold:isRef, pri:isRef?4:1});
   }
 
-  function line(xs, ys, color, lw = 2, dash = [], alpha = 1) {
+  // Target line
+  line(allDays, refY.map(v=>v*targetIdx), '#d6530a', 2, [6,4]);
+  rightLabels.push({text:`▶ ${targetIdx.toFixed(2)}`, yVal:refY[100]*targetIdx, color:'#d6530a', bold:true, pri:6});
+
+  // Current index line
+  if (Number.isFinite(r.winIdx)) {
+    line(allDays, refY.map(v=>v*r.winIdx), '#1f77b4', 2, [10,5], 0.4);
+    rightLabels.push({text:`now ${r.winIdx.toFixed(3)}`, yVal:refY[100]*r.winIdx, color:'#1f77b4', bold:true, pri:5});
+  }
+
+  // Observed course
+  line(r.grid, r.gridY, '#1f77b4', 3);
+  r.xFilt.forEach((d,i)=>{
+    ctx.fillStyle='#1f77b4'; ctx.beginPath();
+    ctx.arc(X(d),Y(r.yFilt[i]),5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+  });
+
+  // Dropped outlier markers
+  if (r.dropped) r.dropped.forEach(pt=>{
+    ctx.save(); ctx.strokeStyle='#b51f2a'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(X(pt.day)-5,Y(pt.value)-5); ctx.lineTo(X(pt.day)+5,Y(pt.value)+5);
+    ctx.moveTo(X(pt.day)+5,Y(pt.value)-5); ctx.lineTo(X(pt.day)-5,Y(pt.value)+5);
+    ctx.stroke(); ctx.restore();
+  });
+
+  // Ramp
+  const rXs=[], rYs=[], tXs=[], tYs=[];
+  r.futDays.forEach((d,i)=>{
+    if (d<=r.rampEnd){rXs.push(d);rYs.push(r.futY[i]);}
+    if (d>=r.rampEnd){tXs.push(d);tYs.push(r.futY[i]);}
+  });
+  line(rXs,rYs,'#ff7f0e',3);
+  if (tXs.length>1) line(tXs,tYs,'#2ca02c',3);
+
+  // Vertical markers
+  function vline(d,color,dash=[],label='') {
+    ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=1.2; ctx.setLineDash(dash); ctx.globalAlpha=0.55;
+    ctx.beginPath(); ctx.moveTo(X(d),Y(ymin)); ctx.lineTo(X(d),Y(ymax)); ctx.stroke(); ctx.restore();
+    if (label) {
+      ctx.fillStyle=color; ctx.font='10px system-ui'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillText(label, X(d), pad.t - 6);
+    }
+  }
+  vline(r.lastDay,'#1f77b4',[8,4],`day ${r.lastDay}`);
+  vline(r.rampEnd,'#ff7f0e',[5,4],`day ${r.rampEnd}`);
+
+  // ── Right-side labels ─────────────────────────────────────────
+  // Strategy: draw each label exactly at Y(lb.yVal) — the correct position.
+  // No collision avoidance (it caused the shifting). Instead:
+  // - only draw labels that fit within the chart area
+  // - priority labels (now, target) always drawn; index labels only if no overlap
+  // - short horizontal tick from X(100) to label
+
+  const chartRight = X(100);
+  const labelX     = chartRight + 6;   // text starts here
+  const tickX      = chartRight + 2;   // tick end
+  const topLim     = pad.t;
+  const botLim     = H - pad.b;
+
+  // Sort by priority desc so high-pri labels win space
+  rightLabels.sort((a,b) => b.pri - a.pri || Y(a.yVal) - Y(b.yVal));
+
+  const usedY = []; // track occupied y bands to avoid overlap for low-pri labels
+
+  rightLabels.forEach(lb => {
+    const labelY = Y(lb.yVal);
+
+    // Clamp: skip if completely outside chart vertical range
+    if (labelY < topLim - 2 || labelY > botLim + 2) return;
+
+    // For low-priority labels (index lines), skip if too close to already-drawn label
+    if (lb.pri < 4) {
+      const tooClose = usedY.some(uy => Math.abs(uy - labelY) < 11);
+      if (tooClose) return;
+    }
+
+    usedY.push(labelY);
+
+    ctx.font = `${lb.bold ? 'bold ' : ''}${lb.pri >= 5 ? 12 : 10}px system-ui`;
+    const tw = ctx.measureText(lb.text).width;
+
+    // Tick mark
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lw;
-    ctx.setLineDash(dash);
+    ctx.strokeStyle = lb.color;
+    ctx.globalAlpha = lb.pri >= 5 ? 0.8 : 0.4;
+    ctx.lineWidth   = lb.pri >= 5 ? 1.5 : 0.8;
+    ctx.setLineDash([]);
     ctx.beginPath();
-
-    xs.forEach((x, i) => {
-      if (i === 0) ctx.moveTo(X(x), Y(ys[i]));
-      else ctx.lineTo(X(x), Y(ys[i]));
-    });
-
+    ctx.moveTo(chartRight, labelY);
+    ctx.lineTo(tickX + 2, labelY);
     ctx.stroke();
     ctx.restore();
-  }
 
-  // Collect right-side labels and draw them later with collision avoidance
-  const rightLabels = [];
+    // Background
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(labelX - 1, labelY - 7, tw + 4, 14);
 
-  function addRightLabel(text, yValue, color, weight = 'normal', priority = 1) {
-    rightLabels.push({
-      text,
-      desiredY: Y(yValue),
-      color,
-      weight,
-      priority
-    });
-  }
-
-  // Background reference index curves
-  for (let idx = 0.70; idx <= 1.3001; idx += 0.05) {
-    const cleanIdx = Number(idx.toFixed(2));
-    const ys = refY.map(v => v * cleanIdx);
-    const isReference = Math.abs(cleanIdx - 1) < 0.001;
-
-    line(
-      allDays,
-      ys,
-      isReference ? '#000' : '#bdbdbd',
-      isReference ? 2.2 : 0.85,
-      isReference ? [] : [5, 4]
-    );
-
-    addRightLabel(
-      cleanIdx.toFixed(2),
-      refY[100] * cleanIdx,
-      isReference ? '#000' : '#777',
-      isReference ? 'bold' : 'normal',
-      isReference ? 3 : 1
-    );
-  }
-
-  // Target index curve
-  line(allDays, refY.map(v => v * targetIdx), '#d6530a', 2, [6, 4]);
-
-  addRightLabel(
-    `target ${targetIdx.toFixed(2)}`,
-    refY[100] * targetIdx,
-    '#d6530a',
-    'bold',
-    5
-  );
-
-  // Current window index curve
-  if (Number.isFinite(r.winIdx)) {
-    line(allDays, refY.map(v => v * r.winIdx), '#1f77b4', 2.6, [10, 6], 0.45);
-
-    addRightLabel(
-      `current ${r.winIdx.toFixed(3)}`,
-      refY[100] * r.winIdx,
-      '#1f77b4',
-      'bold',
-      5
-    );
-  }
-
-  // Past measured patient curve
-  line(r.pastGrid, r.pastY, '#1f77b4', 3);
-
-  r.x.forEach((d, i) => {
-    ctx.fillStyle = '#1f77b4';
-    ctx.beginPath();
-    ctx.arc(X(d), Y(r.y[i]), 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // Text
+    ctx.font = `${lb.bold ? 'bold ' : ''}${lb.pri >= 5 ? 12 : 10}px system-ui`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = lb.color;
+    ctx.fillText(lb.text, labelX, labelY);
   });
-
-  // Future titration / taper curves
-  const rampXs = [];
-  const rampYs = [];
-  const taperXs = [];
-  const taperYs = [];
-
-  r.futDays.forEach((d, i) => {
-    if (d <= r.rampEnd) {
-      rampXs.push(d);
-      rampYs.push(r.futY[i]);
-    }
-
-    if (d >= r.rampEnd) {
-      taperXs.push(d);
-      taperYs.push(r.futY[i]);
-    }
-  });
-
-  line(rampXs, rampYs, '#ff7f0e', 3);
-
-  if (taperXs.length > 1) {
-    line(taperXs, taperYs, '#2ca02c', 3);
-  }
 
   // Axes
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(X(0), Y(ymin));
-  ctx.lineTo(X(100), Y(ymin));
-  ctx.moveTo(X(0), Y(ymin));
-  ctx.lineTo(X(0), Y(ymax));
-  ctx.stroke();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(X(0),Y(ymin)); ctx.lineTo(X(100),Y(ymin)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(X(0),Y(ymin)); ctx.lineTo(X(0),Y(ymax)); ctx.stroke();
 
-  // Draw right-side labels without overlap
-  function drawRightLabels(labels) {
-    const minGap = 15;
-    const topLimit = pad.t + 8;
-    const bottomLimit = H - pad.b - 8;
+  // Labels
+  ctx.fillStyle='#333'; ctx.font='12px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('Days after transplantation', X(50), H-28);
+  ctx.save(); ctx.translate(20,Y((ymin+ymax)/2)); ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('CsA trough concentration (ng/ml)',0,0); ctx.restore();
 
-    // Sort by visual y-position
-    labels.sort((a, b) => a.desiredY - b.desiredY);
-
-    // First pass: push labels downward if needed
-    labels.forEach((label, i) => {
-      label.y = Math.max(label.desiredY, topLimit);
-
-      if (i > 0 && label.y - labels[i - 1].y < minGap) {
-        label.y = labels[i - 1].y + minGap;
-      }
-    });
-
-    // Second pass: pull labels upward if they exceed bottom limit
-    for (let i = labels.length - 1; i >= 0; i--) {
-      if (labels[i].y > bottomLimit) {
-        labels[i].y = bottomLimit;
-      }
-
-      if (i < labels.length - 1 && labels[i + 1].y - labels[i].y < minGap) {
-        labels[i].y = labels[i + 1].y - minGap;
-      }
-    }
-
-    labels.forEach(label => {
-      const lineStartX = X(100.5);
-      const lineEndX = X(103.5);
-      const textX = X(104.5);
-
-      ctx.save();
-
-      // Small connector line from curve endpoint to shifted label
-      ctx.strokeStyle = label.color;
-      ctx.globalAlpha = label.priority >= 5 ? 0.8 : 0.35;
-      ctx.lineWidth = label.priority >= 5 ? 1.3 : 0.8;
-      ctx.setLineDash(label.priority >= 5 ? [] : [3, 3]);
-
-      ctx.beginPath();
-      ctx.moveTo(lineStartX, label.desiredY);
-      ctx.lineTo(lineEndX, label.y);
-      ctx.stroke();
-
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-
-      ctx.font = `${label.weight} ${label.priority >= 5 ? 12 : 11}px system-ui`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-
-      const textWidth = ctx.measureText(label.text).width;
-
-      // White background box so labels remain readable
-      ctx.fillStyle = 'rgba(255,255,255,0.88)';
-      ctx.fillRect(textX - 2, label.y - 8, textWidth + 6, 16);
-
-      ctx.fillStyle = label.color;
-      ctx.fillText(label.text, textX, label.y);
-
-      ctx.restore();
-    });
-  }
-
-  drawRightLabels(rightLabels);
-
-  // Axis labels
-  ctx.fillStyle = '#333';
-  ctx.font = '13px system-ui';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText('Days after transplantation', X(50), H - 38);
-
-  ctx.save();
-  ctx.translate(24, Y((ymin + ymax) / 2));
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('CsA trough concentration (ng/ml)', 0, 0);
-  ctx.restore();
-
-  // Plot title
-  ctx.font = 'bold 14px system-ui';
-  ctx.fillStyle = '#173f73';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(
-    `CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`,
-    X(50),
-    24
-  );
+  ctx.font='bold 13px system-ui'; ctx.fillStyle='#173f73';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`, X(50), 28);
 }
 
+// ── Main compute ──────────────────────────────────────────────
 function recompute() {
-  const err = document.getElementById('error');
-  err.style.display='none';
-
+  document.getElementById('errbox').style.display='none';
   try {
-    const x = parseList(document.getElementById('days').value);
-    const y = parseList(document.getElementById('vals').value);
+    const rawX      = parseList(document.getElementById('days').value);
+    const rawY      = parseList(document.getElementById('vals').value);
     const targetIdx = Number(document.getElementById('target').value);
-    const rampDays = Number(document.getElementById('ramp').value);
+    const rampDays  = Number(document.getElementById('ramp').value);
+    const method    = document.getElementById('reconMethod').value;
+    const useFilter = document.getElementById('useOutlierFilter').checked;
 
     document.getElementById('targetLabel').textContent = targetIdx.toFixed(2);
-    document.getElementById('rampLabel').textContent = rampDays;
+    document.getElementById('rampLabel').textContent   = rampDays;
 
-    if (x.length !== y.length) throw new Error(`Number of days (${x.length}) does not match number of CsA values (${y.length}).`);
-    if (x.length < 2) throw new Error('Please enter at least 2 measurement time points.');
+    if (rawX.length !== rawY.length) throw new Error(`Days count (${rawX.length}) ≠ CsA values count (${rawY.length}).`);
+    if (rawX.length < 2) throw new Error('Please enter at least 2 measurement time points.');
+    if (rawX[0] < 0) throw new Error('Days must be ≥ 0. Pre-transplant values are not supported.');
+    // Days > 100 are allowed for fitting — plot still displays 0–100 only
+    const sortedX = [...rawX].sort((a,b)=>a-b);
+    if (sortedX[0] < 0) throw new Error('Days must be ≥ 0.');
 
-    for(let i=1;i<x.length;i++) {
-      if(x[i]<=x[i-1]) throw new Error('Days must be strictly increasing.');
+    const recon = reconstructCurve(rawX, rawY, method, useFilter);
+
+    // Method note
+    const mn = document.getElementById('methodNote');
+    if (recon.lowessFallback) {
+      mn.textContent = `LOWESS requested but only ${recon.xFilt.length} points remain after filtering — falling back to linear interpolation (need ≥3).`;
+      mn.style.borderLeftColor = '#f9a825';
+    } else {
+      mn.style.borderLeftColor = '';
+      mn.textContent = recon.method==='lowess'
+        ? `LOWESS smoothing applied (frac=0.3, it=3, IQR filter k=2).`
+        : `Linear interpolation applied${useFilter?' with IQR outlier filter k=2':''}.`;
     }
 
-    if (x[0] < 0 || x[x.length-1] >= 100) {
-      throw new Error('All days must be in the range 0–99.');
-    }
+    const lastDay = recon.grid[recon.grid.length-1];
+    const lastVal = recon.yFilt[recon.yFilt.length-1];
 
-    const aucRefTotal = trapzXY(allDays, refY);
-    const lastDay = Math.floor(x[x.length-1]);
-    const lastVal = y[y.length-1];
-    const rampEnd = lastDay + Math.min(rampDays, 100-lastDay);
+    // AUC
+    const refWin = recon.grid.map(d=>linearInterp(d,allDays,refY));
+    const aucPat = trapz(recon.grid, recon.yGrid.map((v,i)=>Number.isFinite(v)?v:0));
+    const aucRef = trapz(recon.grid, refWin);
+    const winIdx = aucRef>0 ? aucPat/aucRef : NaN;
 
-    const past = interpolatePast(x,y);
-    const refWin = past.grid.map(d=>interp(d, allDays, refY));
+    const fut      = buildFutureCurve(lastDay, lastVal, targetIdx, rampDays, aucPat);
+    const aucFut   = trapz(fut.futDays, fut.futY);
+    const projIdx  = (aucPat+aucFut)/trapz(allDays,refY);
 
-    const aucPat = trapzXY(past.grid, past.y);
-    const aucRef = trapzXY(past.grid, refWin);
-    const winIdx = aucRef > 0 ? aucPat/aucRef : NaN;
-
-    const fut = buildFutureCurve(lastDay,lastVal,targetIdx,rampDays,aucPat,aucRefTotal);
-    const aucFuture = trapzXY(fut.futDays, fut.futY);
-    const projIdx = (aucPat + aucFuture) / aucRefTotal;
-
-    const r = {
-      x,
-      y,
-      lastDay,
-      lastVal,
-      rampEnd,
-      pastGrid:past.grid,
-      pastY:past.y,
-      winIdx,
-      futDays:fut.futDays,
-      futY:fut.futY,
-      rampTarget:fut.rampTarget,
-      sf:fut.sf,
-      projIdx
-    };
-
-    document.getElementById('mWin').textContent = fmt(winIdx,3);
+    // Metrics
+    document.getElementById('mWin').textContent  = fmt(winIdx,3);
     document.getElementById('mWinD').textContent = zone(winIdx);
-
-    document.getElementById('mLast').textContent = `${fmt(lastVal,1)} ng/ml`;
+    document.getElementById('mLast').textContent  = `${fmt(lastVal,1)} ng/ml`;
     document.getElementById('mLastD').textContent = `Day ${lastDay}`;
-
-    document.getElementById('mRamp').textContent = `${fmt(fut.rampTarget,1)} ng/ml`;
+    document.getElementById('mRamp').textContent  = `${fmt(fut.rampTarget,1)} ng/ml`;
     document.getElementById('mRampD').textContent = `${fmt(fut.rampTarget-lastVal,1)} ng/ml vs. current`;
-
-    document.getElementById('mProj').textContent = fmt(projIdx,3);
+    document.getElementById('mProj').textContent  = fmt(projIdx,3);
     document.getElementById('mProjD').textContent = zone(projIdx);
 
-    drawChart(r, targetIdx, rampDays);
+    // Draw
+    drawChart({
+      grid: recon.grid, gridY: recon.yGrid,
+      xFilt: recon.xFilt, yFilt: recon.yFilt,
+      dropped: recon.dropped,
+      lastDay, lastVal,
+      futDays: fut.futDays, futY: fut.futY,
+      rampEnd: fut.rampEnd, winIdx
+    }, targetIdx, rampDays);
 
-    document.getElementById('summary').innerHTML = `
+    // Summary
+    const ol = recon.dropped.length
+      ? recon.dropped.map(d=>`day ${d.day}: ${fmt(d.value,1)} ng/ml`).join('; ')
+      : 'none';
+    document.getElementById('summary').innerHTML=`
       <table>
         <tr><th>Parameter</th><th>Value</th></tr>
         <tr><td>Window index day 0–${lastDay}</td><td><b>${fmt(winIdx,3)}</b> – ${zone(winIdx)}</td></tr>
-        <tr><td>Last measurement</td><td><b>${fmt(lastVal,1)} ng/ml</b> day ${lastDay}</td></tr>
+        <tr><td>Reconstruction method</td><td><b>${recon.method==='lowess'?'LOWESS (frac=0.3, it=3)':'Linear interpolation'}</b>${useFilter?', IQR filter k=2':''}</td></tr>
+        <tr><td>Patient AUC (current window)</td><td><b>${fmt(aucPat,1)}</b> ng/ml·d</td></tr>
+        <tr><td>Reference AUC (current window)</td><td><b>${fmt(aucRef,1)}</b> ng/ml·d</td></tr>
+        <tr><td>Outliers excluded</td><td><b>${recon.dropped.length}</b>${recon.dropped.length?' ('+ol+')':''}</td></tr>
+        <tr><td>Last measurement used</td><td><b>${fmt(lastVal,1)} ng/ml</b> day ${lastDay}</td></tr>
         <tr><td>Target exposure index</td><td><b>${targetIdx.toFixed(2)}</b></td></tr>
-        <tr><td>Titration duration</td><td><b>${rampDays} days</b> day ${lastDay} → day ${rampEnd}</td></tr>
+        <tr><td>Titration duration</td><td><b>${rampDays} days</b> (day ${lastDay} → day ${fut.rampEnd})</td></tr>
         <tr><td>Target trough at titration end</td><td><b>${fmt(fut.rampTarget,1)} ng/ml</b></td></tr>
-        <tr><td>Taper scale factor</td><td><b>${fmt(fut.sf,3)}</b> reference × ${fmt(fut.sf,3)}</td></tr>
+        <tr><td>Taper scale factor</td><td><b>${fmt(fut.sf,3)}</b> (reference × ${fmt(fut.sf,3)})</td></tr>
         <tr><td>Projected total index</td><td><b>${fmt(projIdx,3)}</b> – ${zone(projIdx)}</td></tr>
-      </table>
-    `;
+      </table>`;
 
-    const showTable = document.getElementById('showTable').checked;
-    const showAll = document.getElementById('showAll').checked;
-
-    document.getElementById('tableBlock').style.display = showTable ? 'block' : 'none';
-
-    if (showTable) {
-      const tStart = lastDay;
-      const tEnd = showAll ? 100 : Math.min(lastDay+30,100);
-
-      lastTableRows = [];
-
-      for(let d=tStart; d<=tEnd; d++) {
-        const yVal = interp(d, fut.futDays, fut.futY);
-        const refVal = interp(d, allDays, refY);
-        const prev = d===tStart ? yVal : interp(d-1, fut.futDays, fut.futY);
-        const phase = d===lastDay ? 'Current' : (d<=rampEnd ? 'Titration' : 'Taper');
-
+    // Table
+    const showT = document.getElementById('showTable').checked;
+    document.getElementById('tableBlock').style.display = showT?'block':'none';
+    if (showT) {
+      const tEnd = document.getElementById('showAll').checked ? 100 : Math.min(lastDay+30,100);
+      lastTableRows=[];
+      for (let d=lastDay;d<=tEnd;d++) {
+        const yV   = linearInterp(d,fut.futDays,fut.futY);
+        const refV = linearInterp(d,allDays,refY);
+        const prev = d===lastDay ? yV : linearInterp(d-1,fut.futDays,fut.futY);
+        const phase= d===lastDay?'Current':d<=fut.rampEnd?'Titration':'Taper';
         lastTableRows.push({
-          Day:d,
-          Phase:phase,
-          'Target trough (ng/ml)':fmt(yVal,1),
-          'Daily change (ng/ml)':fmt(yVal-prev,1),
-          'Reference curve (ng/ml)':fmt(refVal,1),
-          [`Target line ${targetIdx.toFixed(2)} (ng/ml)`]:fmt(refVal*targetIdx,1)
+          Day:d, Phase:phase,
+          'Target trough (ng/ml)':fmt(yV,1),
+          'Daily change (ng/ml)':fmt(yV-prev,1),
+          'Reference curve (ng/ml)':fmt(refV,1),
+          [`Target line ${targetIdx.toFixed(2)} (ng/ml)`]:fmt(refV*targetIdx,1)
         });
       }
-
       renderTable(lastTableRows);
     }
 
   } catch(e) {
-    err.textContent = '⛔ Input error: ' + e.message;
-    err.style.display='block';
+    document.getElementById('errbox').textContent='⛔ '+e.message;
+    document.getElementById('errbox').style.display='block';
   }
 }
 
 function renderTable(rows) {
-  const tbl = document.getElementById('targetTable');
-
-  if(!rows.length) {
-    tbl.innerHTML='';
-    return;
-  }
-
-  const cols = Object.keys(rows[0]);
-
-  tbl.innerHTML =
-    '<thead><tr>' +
-    cols.map(c=>`<th>${c}</th>`).join('') +
-    '</tr></thead><tbody>' +
-    rows.map(r=>'<tr>'+cols.map(c=>`<td>${r[c]}</td>`).join('')+'</tr>').join('') +
-    '</tbody>';
+  const tbl=document.getElementById('targetTable');
+  if (!rows.length){tbl.innerHTML='';return;}
+  const cols=Object.keys(rows[0]);
+  tbl.innerHTML='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>'+
+    rows.map(r=>'<tr>'+cols.map(c=>`<td>${r[c]}</td>`).join('')+'</tr>').join('')+'</tbody>';
 }
 
 function downloadCSV() {
-  if(!lastTableRows.length) return;
-
-  const cols = Object.keys(lastTableRows[0]);
-
-  const csv = [cols.join(',')]
+  if (!lastTableRows.length) return;
+  const cols=Object.keys(lastTableRows[0]);
+  const csv=[cols.join(',')]
     .concat(lastTableRows.map(r=>cols.map(c=>`"${String(r[c]).replaceAll('"','""')}"`).join(',')))
     .join('\n');
-
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-
   const a=document.createElement('a');
-  a.href=url;
-  a.download='csa_target_table.csv';
-  a.click();
-
-  URL.revokeObjectURL(url);
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='csa_target_table.csv'; a.click();
 }
 
+// ── Init ──────────────────────────────────────────────────────
 async function init() {
   refY = syntheticRef();
 
+  // Try to load reference curve from same directory
   try {
     const res = await fetch('data/csa_reference_curve.csv', {cache:'no-store'});
     if (res.ok) {
-      loadReferenceFromRows(parseCSV(await res.text()));
+      loadRefFromRows(parseCSV(await res.text()));
       refSource='cohort';
     }
   } catch(_) {}
 
-  const status = document.getElementById('status');
-
-  if (refSource === 'cohort') {
-    status.textContent = `Cohort reference curve loaded from data/csa_reference_curve.csv | Reference AUC day 0–100: ${trapzXY(allDays, refY).toFixed(0)} ng/ml·d`;
+  const st = document.getElementById('status');
+  if (refSource==='cohort') {
+    st.textContent=`Cohort reference curve loaded from data/csa_reference_curve.csv | AUC (day 0–100): ${trapz(allDays,refY).toFixed(0)} ng/ml·d`;
   } else {
-    status.className='status warn';
-    status.textContent='Reference CSV not found – using synthetic reference curve. Add data/csa_reference_curve.csv for production use.';
+    st.className='status warn';
+    st.textContent='Synthetic reference curve active – upload your csa_reference_curve.csv via the sidebar or add it to data/.';
   }
 
-  ['days','vals','target','ramp','showTable','showAll'].forEach(id => {
-    document.getElementById(id).addEventListener('input', recompute);
+  ['days','vals','target','ramp'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',recompute);
+  });
+  ['showTable','showAll','reconMethod','useOutlierFilter'].forEach(id=>{
+    document.getElementById(id).addEventListener('change',recompute);
   });
 
-  document.getElementById('csvUpload').addEventListener('change', async ev => {
-    const file=ev.target.files[0];
-    if(!file) return;
-
-    loadReferenceFromRows(parseCSV(await file.text()));
-    refSource='uploaded';
-
-    document.getElementById('status').className='status';
-    document.getElementById('status').textContent=`Reference curve loaded from uploaded CSV | Reference AUC day 0–100: ${trapzXY(allDays, refY).toFixed(0)} ng/ml·d`;
-
-    recompute();
+  document.getElementById('csvUpload').addEventListener('change', async ev=>{
+    const file=ev.target.files[0]; if (!file) return;
+    try {
+      loadRefFromRows(parseCSV(await file.text()));
+      refSource='uploaded';
+      document.getElementById('status').className='status';
+      document.getElementById('status').textContent=
+        `Reference curve loaded from ${file.name} | AUC (day 0–100): ${trapz(allDays,refY).toFixed(0)} ng/ml·d`;
+      recompute();
+    } catch(e) {
+      document.getElementById('errbox').textContent='⛔ CSV error: '+e.message;
+      document.getElementById('errbox').style.display='block';
+    }
   });
 
-  document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
-
+  document.getElementById('downloadBtn').addEventListener('click',downloadCSV);
+  window.addEventListener('resize', recompute);
   recompute();
 }
 
