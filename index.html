@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CsA Dosing Explorer — Static Calculator</title>
+  <style>
+    :root { --ink:#1a1a2e; --muted:#666; --line:#ddd; --bg:#fff; --warn:#fff8e1; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink); background:#fafafa; }
+    .wrap { max-width:1180px; margin:0 auto; padding:24px; }
+    h1 { font-size:1.75rem; margin:0 0 6px; }
+    h2 { font-size:1.15rem; margin-top:24px; }
+    .sub { color:var(--muted); margin-bottom:14px; }
+    .disclaimer { background:var(--warn); border-left:4px solid #f9a825; padding:12px 16px; border-radius:6px; font-size:.92rem; }
+    .grid { display:grid; grid-template-columns:320px 1fr; gap:18px; align-items:start; margin-top:18px; }
+    aside, main, .card { background:var(--bg); border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.04); }
+    aside { padding:16px; position:sticky; top:12px; }
+    main { padding:16px; overflow:hidden; }
+    label { display:block; font-weight:600; margin:14px 0 6px; font-size:.92rem; }
+    input[type="text"], input[type="number"], input[type="file"] { width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid #ccc; border-radius:8px; font-size:.95rem; }
+    input[type="range"] { width:100%; }
+    .small { font-size:.82rem; color:var(--muted); }
+    .row { display:flex; gap:10px; align-items:center; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+    .metric { background:#f7f7fb; border:1px solid #e7e7ef; border-radius:10px; padding:10px; }
+    .metric .k { font-size:.78rem; color:#555; }
+    .metric .v { font-size:1.15rem; font-weight:700; margin:3px 0; }
+    .metric .d { font-size:.78rem; color:#666; }
+    #chart { width:100%; height:520px; border:1px solid #eee; border-radius:10px; background:white; }
+    table { border-collapse:collapse; width:100%; font-size:.88rem; }
+    th,td { border-bottom:1px solid #eee; padding:7px 8px; text-align:left; white-space:nowrap; }
+    th { background:#f7f7fb; position:sticky; top:0; }
+    .table-wrap { max-height:420px; overflow:auto; border:1px solid #eee; border-radius:10px; }
+    button { border:0; background:#1a1a2e; color:white; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; margin-top:10px; }
+    .status { margin:10px 0; padding:10px 12px; border-radius:8px; background:#eef8ee; color:#245b24; font-size:.9rem; }
+    .status.warn { background:#fff4d6; color:#6b4a00; }
+    .error { background:#ffecec; color:#8a1f1f; padding:10px 12px; border-radius:8px; margin:10px 0; }
+    @media (max-width: 900px) { .grid { grid-template-columns:1fr; } aside { position:static; } .metrics { grid-template-columns:1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>CsA Dosing Explorer</h1>
+    <div class="sub">Static browser-only calculator for exposure-guided cyclosporine A exploration after alloHCT.</div>
+    <div class="disclaimer"><b>Disclaimer:</b> This tool is intended for scientific exploration only and does not constitute clinical dosing advice. All dosing decisions must be made by qualified clinicians based on individual patient assessment, organ function, drug interactions, and institutional protocols.</div>
+
+    <div id="status" class="status"></div>
+    <div id="error" class="error" style="display:none"></div>
+
+    <div class="grid">
+      <aside>
+        <h2>Patient Data</h2>
+        <label>Days post-transplant</label>
+        <input id="days" type="text" value="0, 5, 10, 15, 20" />
+        <div class="small">Comma-separated, range 0–99.</div>
+
+        <label>CsA trough levels, ng/ml</label>
+        <input id="vals" type="text" value="220, 215, 205, 198, 192" />
+        <div class="small">Same order as days.</div>
+
+        <h2>Dosing Target</h2>
+        <label>Target exposure index: <span id="targetLabel">1.05</span></label>
+        <input id="target" type="range" min="0.70" max="1.30" value="1.05" step="0.01" />
+
+        <label>Up-titration duration: <span id="rampLabel">7</span> days</label>
+        <input id="ramp" type="range" min="5" max="10" value="7" step="1" />
+
+        <label class="row"><input id="showTable" type="checkbox" checked /> Show daily target table</label>
+        <label class="row"><input id="showAll" type="checkbox" /> Show full 100-day table</label>
+
+        <h2>Reference CSV</h2>
+        <input id="csvUpload" type="file" accept=".csv,text/csv" />
+        <div class="small">Optional: upload CSV locally, or host it as <code>data/csa_reference_curve.csv</code>.</div>
+      </aside>
+
+      <main>
+        <div class="metrics">
+          <div class="metric"><div class="k">Current window index</div><div id="mWin" class="v">–</div><div id="mWinD" class="d">–</div></div>
+          <div class="metric"><div class="k">Last trough</div><div id="mLast" class="v">–</div><div id="mLastD" class="d">–</div></div>
+          <div class="metric"><div class="k">Target trough at ramp end</div><div id="mRamp" class="v">–</div><div id="mRampD" class="d">–</div></div>
+          <div class="metric"><div class="k">Projected total index</div><div id="mProj" class="v">–</div><div id="mProjD" class="d">–</div></div>
+        </div>
+        <canvas id="chart" width="1000" height="520"></canvas>
+        <h2>Summary</h2>
+        <div id="summary"></div>
+        <div id="tableBlock">
+          <h2>Daily Target Concentrations</h2>
+          <div class="table-wrap"><table id="targetTable"></table></div>
+          <button id="downloadBtn">Download table as CSV</button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+<script>
+let allDays = Array.from({length:101}, (_,i)=>i);
+let refY = null;
+let refSource = 'synthetic';
+let lastTableRows = [];
+
+function syntheticRef() {
+  return allDays.map(d => Math.max(150, Math.min(280, 230*Math.exp(-0.0018*d)+8*Math.sin(0.05*d))));
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  const headers = lines[0].split(',').map(h=>h.trim());
+  const dayIdx = headers.indexOf('day');
+  let yIdx = headers.indexOf('ref_lowess_ngml');
+
+  if (dayIdx < 0) throw new Error('CSV needs a "day" column.');
+  if (yIdx < 0) yIdx = headers.findIndex((_,i)=>i!==dayIdx);
+  if (yIdx < 0) throw new Error('CSV needs a reference concentration column.');
+
+  return lines.slice(1).map(line => {
+    const cells = line.split(',').map(c=>c.trim());
+    return {day: Number(cells[dayIdx]), y: Number(cells[yIdx])};
+  }).filter(r => Number.isFinite(r.day) && Number.isFinite(r.y)).sort((a,b)=>a.day-b.day);
+}
+
+function interp(x, xp, fp) {
+  if (x <= xp[0]) return fp[0];
+  if (x >= xp[xp.length-1]) return fp[fp.length-1];
+
+  let lo=0, hi=xp.length-1;
+  while (hi-lo>1) {
+    const mid=(lo+hi)>>1;
+    if (xp[mid] <= x) lo=mid;
+    else hi=mid;
+  }
+
+  const t = (x-xp[lo])/(xp[hi]-xp[lo]);
+  return fp[lo] + t*(fp[hi]-fp[lo]);
+}
+
+function loadReferenceFromRows(rows) {
+  const xp = rows.map(r=>r.day);
+  const fp = rows.map(r=>r.y);
+  refY = allDays.map(d => interp(d, xp, fp));
+}
+
+function trapz(y, x) {
+  let s=0;
+  for (let i=1;i<y.length;i++) {
+    s += 0.5*(y[i]+y[i-1])*(x[i]-x[i-1]);
+  }
+  return s;
+}
+
+function trapzXY(x, y) {
+  return trapz(y, x);
+}
+
+function parseList(s) {
+  return s.split(',').map(v=>Number(v.trim())).filter(v=>!Number.isNaN(v));
+}
+
+function fmt(n,d=1) {
+  return Number.isFinite(n) ? n.toFixed(d) : '–';
+}
+
+function zone(idx) {
+  if (idx < 0.85) return 'well below reference ⚠';
+  if (idx < 0.95) return 'below reference';
+  if (idx <= 1.05) return 'near reference ✓';
+  if (idx <= 1.15) return 'above reference';
+  return 'well above reference ⚠';
+}
+
+function interpolatePast(xPts, yPts) {
+  const start = Math.floor(Math.min(...xPts));
+  const end = Math.floor(Math.max(...xPts));
+  const grid = Array.from({length:end-start+1}, (_,i)=>start+i);
+  const y = grid.map(d => interp(d, xPts, yPts));
+  return {grid, y};
+}
+
+function buildFutureCurve(lastDay, lastVal, targetIdx, rampDays, aucPast, aucRefTotal) {
+  const horizon = 100 - lastDay;
+
+  if (horizon <= 0) {
+    return {futDays:[lastDay], futY:[lastVal], rampTarget:lastVal, sf:targetIdx};
+  }
+
+  const rampN = Math.min(rampDays, horizon);
+  const rampEnd = lastDay + rampN;
+  const refRampEnd = interp(rampEnd, allDays, refY);
+  const taperDays = Array.from({length:101-rampEnd}, (_,i)=>rampEnd+i);
+  const refTaper = taperDays.map(d=>interp(d, allDays, refY));
+  const aucRefTaper = taperDays.length > 1 ? trapzXY(taperDays, refTaper) : 0;
+  const aucNeeded = targetIdx * aucRefTotal - aucPast;
+  const denom = rampN * refRampEnd / 2 + aucRefTaper;
+  const sf = denom > 0 ? Math.max((aucNeeded - rampN * lastVal / 2) / denom, 0) : targetIdx;
+  const rampTarget = sf * refRampEnd;
+
+  const rampDaysArr = Array.from({length:rampEnd-lastDay+1}, (_,i)=>lastDay+i);
+  const rampY = rampDaysArr.map((_,i)=> lastVal + (rampTarget-lastVal)*(i/(rampDaysArr.length-1 || 1)));
+  const taperY = refTaper.map(v=>v*sf);
+
+  const futDays = rampDaysArr.concat(taperDays.slice(1));
+  const futY = rampY.concat(taperY.slice(1));
+
+  return {futDays, futY, rampTarget, sf};
+}
+
+function drawChart(r, targetIdx, rampDays) {
+  const c = document.getElementById('chart');
+  const ctx = c.getContext('2d');
+
+  const W = c.width;
+  const H = c.height;
+
+  ctx.clearRect(0,0,W,H);
+
+  const pad = {l:58,r:70,t:35,b:52};
+  const xmin=-2;
+  const xmax=116;
+  const ymin=50;
+  const ymax=420;
+
+  const X = d => pad.l + (d-xmin)/(xmax-xmin)*(W-pad.l-pad.r);
+  const Y = v => H-pad.b - (v-ymin)/(ymax-ymin)*(H-pad.t-pad.b);
+
+  ctx.fillStyle='#fff';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.strokeStyle='#eee';
+  ctx.lineWidth=1;
+
+  for (let d=0; d<=100; d+=10) {
+    ctx.beginPath();
+    ctx.moveTo(X(d),Y(ymin));
+    ctx.lineTo(X(d),Y(ymax));
+    ctx.stroke();
+  }
+
+  for (let v=50; v<=400; v+=50) {
+    ctx.beginPath();
+    ctx.moveTo(X(xmin),Y(v));
+    ctx.lineTo(X(xmax),Y(v));
+    ctx.stroke();
+  }
+
+  function line(xs, ys, color, lw=2, dash=[]) {
+    ctx.strokeStyle=color;
+    ctx.lineWidth=lw;
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+
+    xs.forEach((x,i)=>{
+      if(i===0) ctx.moveTo(X(x),Y(ys[i]));
+      else ctx.lineTo(X(x),Y(ys[i]));
+    });
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for (let idx=0.70; idx<=1.3001; idx+=0.05) {
+    const ys=refY.map(v=>v*idx);
+    const isReference = Math.abs(idx-1)<.001;
+
+    line(
+      allDays,
+      ys,
+      isReference ? '#000' : '#bdbdbd',
+      isReference ? 2.2 : .85,
+      isReference ? [] : [5,4]
+    );
+
+    ctx.fillStyle = isReference ? '#000' : '#777';
+    ctx.font='11px system-ui';
+    ctx.fillText(idx.toFixed(2), X(102), Y(ys[100])+4);
+  }
+
+  line(allDays, refY.map(v=>v*targetIdx), '#d6530a', 2, [6,4]);
+
+  ctx.fillStyle='#d6530a';
+  ctx.font='12px system-ui';
+  ctx.fillText(targetIdx.toFixed(2), X(102), Y(refY[100]*targetIdx)+4);
+
+  line(r.pastGrid, r.pastY, '#1f77b4', 3);
+
+  r.x.forEach((d,i)=>{
+    ctx.fillStyle='#1f77b4';
+    ctx.beginPath();
+    ctx.arc(X(d),Y(r.y[i]),5,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  });
+
+  const rampXs=[];
+  const rampYs=[];
+  const taperXs=[];
+  const taperYs=[];
+
+  r.futDays.forEach((d,i)=>{
+    if(d<=r.rampEnd){
+      rampXs.push(d);
+      rampYs.push(r.futY[i]);
+    }
+
+    if(d>=r.rampEnd){
+      taperXs.push(d);
+      taperYs.push(r.futY[i]);
+    }
+  });
+
+  line(rampXs, rampYs, '#ff7f0e', 3);
+
+  if (taperXs.length>1) {
+    line(taperXs, taperYs, '#2ca02c', 3);
+  }
+
+  ctx.strokeStyle='#333';
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(X(0),Y(ymin));
+  ctx.lineTo(X(100),Y(ymin));
+  ctx.moveTo(X(0),Y(ymin));
+  ctx.lineTo(X(0),Y(ymax));
+  ctx.stroke();
+
+  ctx.fillStyle='#333';
+  ctx.font='13px system-ui';
+  ctx.fillText('Days after transplantation', X(39), H-14);
+
+  ctx.save();
+  ctx.translate(15,Y(260));
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText('CsA trough concentration (ng/ml)',0,0);
+  ctx.restore();
+
+  ctx.font='bold 14px system-ui';
+  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Up-titration ${rampDays} days`, X(14), 22);
+}
+
+function recompute() {
+  const err = document.getElementById('error');
+  err.style.display='none';
+
+  try {
+    const x = parseList(document.getElementById('days').value);
+    const y = parseList(document.getElementById('vals').value);
+    const targetIdx = Number(document.getElementById('target').value);
+    const rampDays = Number(document.getElementById('ramp').value);
+
+    document.getElementById('targetLabel').textContent = targetIdx.toFixed(2);
+    document.getElementById('rampLabel').textContent = rampDays;
+
+    if (x.length !== y.length) throw new Error(`Number of days (${x.length}) does not match number of CsA values (${y.length}).`);
+    if (x.length < 2) throw new Error('Please enter at least 2 measurement time points.');
+
+    for(let i=1;i<x.length;i++) {
+      if(x[i]<=x[i-1]) throw new Error('Days must be strictly increasing.');
+    }
+
+    if (x[0] < 0 || x[x.length-1] >= 100) {
+      throw new Error('All days must be in the range 0–99.');
+    }
+
+    const aucRefTotal = trapzXY(allDays, refY);
+    const lastDay = Math.floor(x[x.length-1]);
+    const lastVal = y[y.length-1];
+    const rampEnd = lastDay + Math.min(rampDays, 100-lastDay);
+
+    const past = interpolatePast(x,y);
+    const refWin = past.grid.map(d=>interp(d, allDays, refY));
+
+    const aucPat = trapzXY(past.grid, past.y);
+    const aucRef = trapzXY(past.grid, refWin);
+    const winIdx = aucRef > 0 ? aucPat/aucRef : NaN;
+
+    const fut = buildFutureCurve(lastDay,lastVal,targetIdx,rampDays,aucPat,aucRefTotal);
+    const aucFuture = trapzXY(fut.futDays, fut.futY);
+    const projIdx = (aucPat + aucFuture) / aucRefTotal;
+
+    const r = {
+      x,
+      y,
+      lastDay,
+      lastVal,
+      rampEnd,
+      pastGrid:past.grid,
+      pastY:past.y,
+      winIdx,
+      futDays:fut.futDays,
+      futY:fut.futY,
+      rampTarget:fut.rampTarget,
+      sf:fut.sf,
+      projIdx
+    };
+
+    document.getElementById('mWin').textContent = fmt(winIdx,3);
+    document.getElementById('mWinD').textContent = zone(winIdx);
+
+    document.getElementById('mLast').textContent = `${fmt(lastVal,1)} ng/ml`;
+    document.getElementById('mLastD').textContent = `Day ${lastDay}`;
+
+    document.getElementById('mRamp').textContent = `${fmt(fut.rampTarget,1)} ng/ml`;
+    document.getElementById('mRampD').textContent = `${fmt(fut.rampTarget-lastVal,1)} ng/ml vs. current`;
+
+    document.getElementById('mProj').textContent = fmt(projIdx,3);
+    document.getElementById('mProjD').textContent = zone(projIdx);
+
+    drawChart(r, targetIdx, rampDays);
+
+    document.getElementById('summary').innerHTML = `
+      <table>
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>Window index day 0–${lastDay}</td><td><b>${fmt(winIdx,3)}</b> – ${zone(winIdx)}</td></tr>
+        <tr><td>Last measurement</td><td><b>${fmt(lastVal,1)} ng/ml</b> day ${lastDay}</td></tr>
+        <tr><td>Target exposure index</td><td><b>${targetIdx.toFixed(2)}</b></td></tr>
+        <tr><td>Up-titration duration</td><td><b>${rampDays} days</b> day ${lastDay} → day ${rampEnd}</td></tr>
+        <tr><td>Target trough at ramp end</td><td><b>${fmt(fut.rampTarget,1)} ng/ml</b></td></tr>
+        <tr><td>Taper scale factor</td><td><b>${fmt(fut.sf,3)}</b> reference × ${fmt(fut.sf,3)}</td></tr>
+        <tr><td>Projected total index</td><td><b>${fmt(projIdx,3)}</b> – ${zone(projIdx)}</td></tr>
+      </table>
+    `;
+
+    const showTable = document.getElementById('showTable').checked;
+    const showAll = document.getElementById('showAll').checked;
+
+    document.getElementById('tableBlock').style.display = showTable ? 'block' : 'none';
+
+    if (showTable) {
+      const tStart = lastDay;
+      const tEnd = showAll ? 100 : Math.min(lastDay+30,100);
+
+      lastTableRows = [];
+
+      for(let d=tStart; d<=tEnd; d++) {
+        const yVal = interp(d, fut.futDays, fut.futY);
+        const refVal = interp(d, allDays, refY);
+        const prev = d===tStart ? yVal : interp(d-1, fut.futDays, fut.futY);
+        const phase = d===lastDay ? 'Current' : (d<=rampEnd ? 'Up-titration' : 'Taper');
+
+        lastTableRows.push({
+          Day:d,
+          Phase:phase,
+          'Target trough (ng/ml)':fmt(yVal,1),
+          'Daily change (ng/ml)':fmt(yVal-prev,1),
+          'Reference curve (ng/ml)':fmt(refVal,1),
+          [`Target line ${targetIdx.toFixed(2)} (ng/ml)`]:fmt(refVal*targetIdx,1)
+        });
+      }
+
+      renderTable(lastTableRows);
+    }
+
+  } catch(e) {
+    err.textContent = '⛔ Input error: ' + e.message;
+    err.style.display='block';
+  }
+}
+
+function renderTable(rows) {
+  const tbl = document.getElementById('targetTable');
+
+  if(!rows.length) {
+    tbl.innerHTML='';
+    return;
+  }
+
+  const cols = Object.keys(rows[0]);
+
+  tbl.innerHTML =
+    '<thead><tr>' +
+    cols.map(c=>`<th>${c}</th>`).join('') +
+    '</tr></thead><tbody>' +
+    rows.map(r=>'<tr>'+cols.map(c=>`<td>${r[c]}</td>`).join('')+'</tr>').join('') +
+    '</tbody>';
+}
+
+function downloadCSV() {
+  if(!lastTableRows.length) return;
+
+  const cols = Object.keys(lastTableRows[0]);
+
+  const csv = [cols.join(',')]
+    .concat(lastTableRows.map(r=>cols.map(c=>`"${String(r[c]).replaceAll('"','""')}"`).join(',')))
+    .join('\n');
+
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='csa_target_table.csv';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+async function init() {
+  refY = syntheticRef();
+
+  try {
+    const res = await fetch('data/csa_reference_curve.csv', {cache:'no-store'});
+    if (res.ok) {
+      loadReferenceFromRows(parseCSV(await res.text()));
+      refSource='cohort';
+    }
+  } catch(_) {}
+
+  const status = document.getElementById('status');
+
+  if (refSource === 'cohort') {
+    status.textContent = `Cohort reference curve loaded from data/csa_reference_curve.csv | Reference AUC day 0–100: ${trapzXY(allDays, refY).toFixed(0)} ng/ml·d`;
+  } else {
+    status.className='status warn';
+    status.textContent='Reference CSV not found – using synthetic reference curve. Add data/csa_reference_curve.csv for production use.';
+  }
+
+  ['days','vals','target','ramp','showTable','showAll'].forEach(id => {
+    document.getElementById(id).addEventListener('input', recompute);
+  });
+
+  document.getElementById('csvUpload').addEventListener('change', async ev => {
+    const file=ev.target.files[0];
+    if(!file) return;
+
+    loadReferenceFromRows(parseCSV(await file.text()));
+    refSource='uploaded';
+
+    document.getElementById('status').className='status';
+    document.getElementById('status').textContent=`Reference curve loaded from uploaded CSV | Reference AUC day 0–100: ${trapzXY(allDays, refY).toFixed(0)} ng/ml·d`;
+
+    recompute();
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+
+  recompute();
+}
+
+init();
+</script>
+</body>
+</html>
