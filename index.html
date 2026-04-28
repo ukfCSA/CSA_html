@@ -5,43 +5,186 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CsA Dosing Explorer — Static Calculator</title>
   <style>
-    :root { --ink:#1a1a2e; --muted:#666; --line:#ddd; --bg:#fff; --warn:#fff8e1; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink); background:#fafafa; }
+    :root {
+      --ukf-blue:#1f4f8f;
+      --ukf-blue-dark:#173f73;
+      --ukf-red:#b51f2a;
+      --ukf-red-dark:#8f1720;
+      --ink:#1a1a2e;
+      --muted:#666;
+      --line:#ddd;
+      --bg:#fff;
+      --warn:#fff8e1;
+      --panel:#f7f9fd;
+    }
+
+    body {
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--ink);
+      background:#fafafa;
+    }
+
     .wrap { max-width:1180px; margin:0 auto; padding:24px; }
-    h1 { font-size:1.75rem; margin:0 0 6px; }
-    h2 { font-size:1.15rem; margin-top:24px; }
-    .sub { color:var(--muted); margin-bottom:14px; }
-    .disclaimer { background:var(--warn); border-left:4px solid #f9a825; padding:12px 16px; border-radius:6px; font-size:.92rem; }
-    .grid { display:grid; grid-template-columns:320px 1fr; gap:18px; align-items:start; margin-top:18px; }
-    aside, main, .card { background:var(--bg); border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.04); }
-    aside { padding:16px; position:sticky; top:12px; }
+
+    .topbar {
+      border-top:5px solid var(--ukf-red);
+      border-bottom:1px solid #e2e7f0;
+      background:linear-gradient(90deg, #fff 0%, #f6f9ff 100%);
+      padding:18px 20px;
+      border-radius:14px;
+      box-shadow:0 1px 8px rgba(0,0,0,.04);
+      margin-bottom:14px;
+    }
+
+    h1 {
+      font-size:1.85rem;
+      margin:0;
+      color:var(--ukf-blue-dark);
+      letter-spacing:.01em;
+    }
+
+    h2 {
+      font-size:1.15rem;
+      margin-top:24px;
+      color:var(--ukf-blue-dark);
+    }
+
+    .disclaimer {
+      background:var(--warn);
+      border-left:4px solid #f9a825;
+      padding:12px 16px;
+      border-radius:6px;
+      font-size:.92rem;
+    }
+
+    .grid {
+      display:grid;
+      grid-template-columns:320px 1fr;
+      gap:18px;
+      align-items:start;
+      margin-top:18px;
+    }
+
+    aside, main, .card {
+      background:var(--bg);
+      border:1px solid var(--line);
+      border-radius:12px;
+      box-shadow:0 1px 8px rgba(0,0,0,.04);
+    }
+
+    aside {
+      padding:16px;
+      position:sticky;
+      top:12px;
+      border-top:5px solid var(--ukf-blue);
+      background:linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
+    }
+
     main { padding:16px; overflow:hidden; }
-    label { display:block; font-weight:600; margin:14px 0 6px; font-size:.92rem; }
-    input[type="text"], input[type="number"], input[type="file"] { width:100%; box-sizing:border-box; padding:9px 10px; border:1px solid #ccc; border-radius:8px; font-size:.95rem; }
-    input[type="range"] { width:100%; }
+
+    label {
+      display:block;
+      font-weight:600;
+      margin:14px 0 6px;
+      font-size:.92rem;
+      color:#23395d;
+    }
+
+    input[type="text"], input[type="number"], input[type="file"] {
+      width:100%;
+      box-sizing:border-box;
+      padding:9px 10px;
+      border:1px solid #c9d3e6;
+      border-radius:8px;
+      font-size:.95rem;
+      background:#fff;
+    }
+
+    input[type="range"] {
+      width:100%;
+      accent-color:var(--ukf-blue);
+    }
+
     .small { font-size:.82rem; color:var(--muted); }
     .row { display:flex; gap:10px; align-items:center; }
-    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
-    .metric { background:#f7f7fb; border:1px solid #e7e7ef; border-radius:10px; padding:10px; }
+
+    .metrics {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:14px;
+    }
+
+    .metric {
+      background:#f7f9fd;
+      border:1px solid #e1e7f2;
+      border-top:4px solid var(--ukf-blue);
+      border-radius:10px;
+      padding:10px;
+    }
+
     .metric .k { font-size:.78rem; color:#555; }
-    .metric .v { font-size:1.15rem; font-weight:700; margin:3px 0; }
+    .metric .v { font-size:1.15rem; font-weight:700; margin:3px 0; color:var(--ukf-blue-dark); }
     .metric .d { font-size:.78rem; color:#666; }
-    #chart { width:100%; height:520px; border:1px solid #eee; border-radius:10px; background:white; }
+
+    #chart {
+      width:100%;
+      height:520px;
+      border:1px solid #eee;
+      border-radius:10px;
+      background:white;
+    }
+
     table { border-collapse:collapse; width:100%; font-size:.88rem; }
     th,td { border-bottom:1px solid #eee; padding:7px 8px; text-align:left; white-space:nowrap; }
-    th { background:#f7f7fb; position:sticky; top:0; }
-    .table-wrap { max-height:420px; overflow:auto; border:1px solid #eee; border-radius:10px; }
-    button { border:0; background:#1a1a2e; color:white; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; margin-top:10px; }
-    .status { margin:10px 0; padding:10px 12px; border-radius:8px; background:#eef8ee; color:#245b24; font-size:.9rem; }
+    th { background:#f7f9fd; position:sticky; top:0; color:var(--ukf-blue-dark); }
+
+    .table-wrap {
+      max-height:420px;
+      overflow:auto;
+      border:1px solid #eee;
+      border-radius:10px;
+    }
+
+    button {
+      border:0;
+      background:var(--ukf-blue-dark);
+      color:white;
+      padding:10px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      margin-top:10px;
+    }
+
+    button:hover { background:var(--ukf-blue); }
+
+    .status {
+      margin:10px 0;
+      padding:10px 12px;
+      border-radius:8px;
+      background:#eef8ee;
+      color:#245b24;
+      font-size:.9rem;
+    }
+
     .status.warn { background:#fff4d6; color:#6b4a00; }
     .error { background:#ffecec; color:#8a1f1f; padding:10px 12px; border-radius:8px; margin:10px 0; }
-    @media (max-width: 900px) { .grid { grid-template-columns:1fr; } aside { position:static; } .metrics { grid-template-columns:1fr 1fr; } }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns:1fr; }
+      aside { position:static; }
+      .metrics { grid-template-columns:1fr 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>CsA Dosing Explorer</h1>
-    <div class="sub">Static browser-only calculator for exposure-guided cyclosporine A exploration after alloHCT.</div>
+    <div class="topbar">
+      <h1>CsA Dosing Explorer</h1>
+    </div>
+
     <div class="disclaimer"><b>Disclaimer:</b> This tool is intended for scientific exploration only and does not constitute clinical dosing advice. All dosing decisions must be made by qualified clinicians based on individual patient assessment, organ function, drug interactions, and institutional protocols.</div>
 
     <div id="status" class="status"></div>
@@ -62,7 +205,7 @@
         <label>Target exposure index: <span id="targetLabel">1.05</span></label>
         <input id="target" type="range" min="0.70" max="1.30" value="1.05" step="0.01" />
 
-        <label>Up-titration duration: <span id="rampLabel">7</span> days</label>
+        <label>Titration duration: <span id="rampLabel">7</span> days</label>
         <input id="ramp" type="range" min="5" max="10" value="7" step="1" />
 
         <label class="row"><input id="showTable" type="checkbox" checked /> Show daily target table</label>
@@ -77,7 +220,7 @@
         <div class="metrics">
           <div class="metric"><div class="k">Current window index</div><div id="mWin" class="v">–</div><div id="mWinD" class="d">–</div></div>
           <div class="metric"><div class="k">Last trough</div><div id="mLast" class="v">–</div><div id="mLastD" class="d">–</div></div>
-          <div class="metric"><div class="k">Target trough at ramp end</div><div id="mRamp" class="v">–</div><div id="mRampD" class="d">–</div></div>
+          <div class="metric"><div class="k">Target trough at titration end</div><div id="mRamp" class="v">–</div><div id="mRampD" class="d">–</div></div>
           <div class="metric"><div class="k">Projected total index</div><div id="mProj" class="v">–</div><div id="mProjD" class="d">–</div></div>
         </div>
         <canvas id="chart" width="1000" height="520"></canvas>
@@ -212,7 +355,7 @@ function drawChart(r, targetIdx, rampDays) {
 
   ctx.clearRect(0,0,W,H);
 
-  const pad = {l:58,r:70,t:35,b:52};
+  const pad = {l:76,r:88,t:48,b:68};
   const xmin=-2;
   const xmax=116;
   const ymin=50;
@@ -227,21 +370,33 @@ function drawChart(r, targetIdx, rampDays) {
   ctx.strokeStyle='#eee';
   ctx.lineWidth=1;
 
+  ctx.fillStyle='#555';
+  ctx.font='12px system-ui';
+  ctx.textAlign='center';
+  ctx.textBaseline='top';
+
   for (let d=0; d<=100; d+=10) {
     ctx.beginPath();
     ctx.moveTo(X(d),Y(ymin));
     ctx.lineTo(X(d),Y(ymax));
     ctx.stroke();
+    ctx.fillText(String(d), X(d), Y(ymin)+8);
   }
+
+  ctx.textAlign='right';
+  ctx.textBaseline='middle';
 
   for (let v=50; v<=400; v+=50) {
     ctx.beginPath();
     ctx.moveTo(X(xmin),Y(v));
     ctx.lineTo(X(xmax),Y(v));
     ctx.stroke();
+    ctx.fillText(String(v), X(xmin)-10, Y(v));
   }
 
-  function line(xs, ys, color, lw=2, dash=[]) {
+  function line(xs, ys, color, lw=2, dash=[], alpha=1) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.strokeStyle=color;
     ctx.lineWidth=lw;
     ctx.setLineDash(dash);
@@ -253,7 +408,7 @@ function drawChart(r, targetIdx, rampDays) {
     });
 
     ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   for (let idx=0.70; idx<=1.3001; idx+=0.05) {
@@ -270,14 +425,32 @@ function drawChart(r, targetIdx, rampDays) {
 
     ctx.fillStyle = isReference ? '#000' : '#777';
     ctx.font='11px system-ui';
-    ctx.fillText(idx.toFixed(2), X(102), Y(ys[100])+4);
+    ctx.textAlign='left';
+    ctx.textBaseline='middle';
+    ctx.fillText(idx.toFixed(2), X(102), Y(ys[100]));
   }
 
   line(allDays, refY.map(v=>v*targetIdx), '#d6530a', 2, [6,4]);
 
   ctx.fillStyle='#d6530a';
   ctx.font='12px system-ui';
-  ctx.fillText(targetIdx.toFixed(2), X(102), Y(refY[100]*targetIdx)+4);
+  ctx.textAlign='left';
+  ctx.textBaseline='middle';
+  ctx.fillText(`target ${targetIdx.toFixed(2)}`, X(102), Y(refY[100]*targetIdx));
+
+  // Current window index line: shows which scaled reference curve the entered values follow best.
+  if (Number.isFinite(r.winIdx)) {
+    line(allDays, refY.map(v=>v*r.winIdx), '#1f77b4', 2.6, [10,6], 0.45);
+
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle='#1f77b4';
+    ctx.font='bold 12px system-ui';
+    ctx.textAlign='left';
+    ctx.textBaseline='middle';
+    ctx.fillText(`current ${r.winIdx.toFixed(3)}`, X(102), Y(refY[100]*r.winIdx));
+    ctx.restore();
+  }
 
   line(r.pastGrid, r.pastY, '#1f77b4', 3);
 
@@ -316,6 +489,7 @@ function drawChart(r, targetIdx, rampDays) {
 
   ctx.strokeStyle='#333';
   ctx.lineWidth=1;
+  ctx.setLineDash([]);
   ctx.beginPath();
   ctx.moveTo(X(0),Y(ymin));
   ctx.lineTo(X(100),Y(ymin));
@@ -325,16 +499,23 @@ function drawChart(r, targetIdx, rampDays) {
 
   ctx.fillStyle='#333';
   ctx.font='13px system-ui';
-  ctx.fillText('Days after transplantation', X(39), H-14);
+  ctx.textAlign='center';
+  ctx.textBaseline='top';
+  ctx.fillText('Days after transplantation', X(50), H-38);
 
   ctx.save();
-  ctx.translate(15,Y(260));
+  ctx.translate(24, Y((ymin+ymax)/2));
   ctx.rotate(-Math.PI/2);
-  ctx.fillText('CsA trough concentration (ng/ml)',0,0);
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText('CsA trough concentration (ng/ml)', 0, 0);
   ctx.restore();
 
   ctx.font='bold 14px system-ui';
-  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Up-titration ${rampDays} days`, X(14), 22);
+  ctx.fillStyle='#173f73';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`, X(50), 24);
 }
 
 function recompute() {
@@ -413,8 +594,8 @@ function recompute() {
         <tr><td>Window index day 0–${lastDay}</td><td><b>${fmt(winIdx,3)}</b> – ${zone(winIdx)}</td></tr>
         <tr><td>Last measurement</td><td><b>${fmt(lastVal,1)} ng/ml</b> day ${lastDay}</td></tr>
         <tr><td>Target exposure index</td><td><b>${targetIdx.toFixed(2)}</b></td></tr>
-        <tr><td>Up-titration duration</td><td><b>${rampDays} days</b> day ${lastDay} → day ${rampEnd}</td></tr>
-        <tr><td>Target trough at ramp end</td><td><b>${fmt(fut.rampTarget,1)} ng/ml</b></td></tr>
+        <tr><td>Titration duration</td><td><b>${rampDays} days</b> day ${lastDay} → day ${rampEnd}</td></tr>
+        <tr><td>Target trough at titration end</td><td><b>${fmt(fut.rampTarget,1)} ng/ml</b></td></tr>
         <tr><td>Taper scale factor</td><td><b>${fmt(fut.sf,3)}</b> reference × ${fmt(fut.sf,3)}</td></tr>
         <tr><td>Projected total index</td><td><b>${fmt(projIdx,3)}</b> – ${zone(projIdx)}</td></tr>
       </table>
@@ -435,7 +616,7 @@ function recompute() {
         const yVal = interp(d, fut.futDays, fut.futY);
         const refVal = interp(d, allDays, refY);
         const prev = d===tStart ? yVal : interp(d-1, fut.futDays, fut.futY);
-        const phase = d===lastDay ? 'Current' : (d<=rampEnd ? 'Up-titration' : 'Taper');
+        const phase = d===lastDay ? 'Current' : (d<=rampEnd ? 'Titration' : 'Taper');
 
         lastTableRows.push({
           Day:d,
