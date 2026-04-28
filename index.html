@@ -247,33 +247,67 @@ function syntheticRef() {
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  const headers = lines[0].split(',').map(h=>h.trim());
-  const dayIdx = headers.indexOf('day');
-  let yIdx = headers.indexOf('ref_lowess_ngml');
-
-  if (dayIdx < 0) throw new Error('CSV needs a "day" column.');
-  if (yIdx < 0) yIdx = headers.findIndex((_,i)=>i!==dayIdx);
-  if (yIdx < 0) throw new Error('CSV needs a reference concentration column.');
-
-  return lines.slice(1).map(line => {
-    const cells = line.split(',').map(c=>c.trim());
-    return {day: Number(cells[dayIdx]), y: Number(cells[yIdx])};
-  }).filter(r => Number.isFinite(r.day) && Number.isFinite(r.y)).sort((a,b)=>a.day-b.day);
-}
-
-function interp(x, xp, fp) {
-  if (x <= xp[0]) return fp[0];
-  if (x >= xp[xp.length-1]) return fp[fp.length-1];
-
-  let lo=0, hi=xp.length-1;
-  while (hi-lo>1) {
-    const mid=(lo+hi)>>1;
-    if (xp[mid] <= x) lo=mid;
-    else hi=mid;
+  if (lines.length < 2) {
+    throw new Error('CSV needs a header row and at least one data row.');
   }
 
-  const t = (x-xp[lo])/(xp[hi]-xp[lo]);
-  return fp[lo] + t*(fp[hi]-fp[lo]);
+  const headers = lines[0].split(',').map(h => h.trim());
+
+  const dayIdx = headers.findIndex(h => h.toLowerCase() === 'day');
+
+  const preferredReferenceColumns = [
+    'ref_lowess_ngml',
+    'index_1.00',
+    'raw_median_ngml',
+    'raw_mean_ngml'
+  ];
+
+  let yIdx = -1;
+  let usedColumn = '';
+
+  for (const col of preferredReferenceColumns) {
+    yIdx = headers.findIndex(h => h.toLowerCase() === col.toLowerCase());
+    if (yIdx >= 0) {
+      usedColumn = headers[yIdx];
+      break;
+    }
+  }
+
+  if (dayIdx < 0) {
+    throw new Error(
+      'CSV needs a "day" column. Found columns: ' + headers.join(', ')
+    );
+  }
+
+  if (yIdx < 0) {
+    throw new Error(
+      'CSV needs one of these reference columns: ' +
+      preferredReferenceColumns.join(', ') +
+      '. Found columns: ' + headers.join(', ')
+    );
+  }
+
+  const rows = lines.slice(1).map(line => {
+    const cells = line.split(',').map(c => c.trim());
+
+    return {
+      day: Number(cells[dayIdx]),
+      y: Number(cells[yIdx])
+    };
+  }).filter(r =>
+    Number.isFinite(r.day) &&
+    Number.isFinite(r.y)
+  ).sort((a,b) => a.day - b.day);
+
+  if (rows.length < 2) {
+    throw new Error(
+      `CSV column "${usedColumn}" does not contain enough numeric reference values.`
+    );
+  }
+
+  console.log(`Using CSV reference column: ${usedColumn}`);
+
+  return rows;
 }
 
 function loadReferenceFromRows(rows) {
