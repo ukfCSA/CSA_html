@@ -353,129 +353,151 @@ function drawChart(r, targetIdx, rampDays) {
   const W = c.width;
   const H = c.height;
 
-  ctx.clearRect(0,0,W,H);
+  ctx.clearRect(0, 0, W, H);
 
-  const pad = {l:76,r:88,t:48,b:68};
-  const xmin=-2;
-  const xmax=116;
-  const ymin=50;
-  const ymax=420;
+  // More right padding for non-overlapping curve labels
+  const pad = { l: 76, r: 145, t: 48, b: 68 };
+  const xmin = -2;
+  const xmax = 122;
+  const ymin = 50;
+  const ymax = 420;
 
-  const X = d => pad.l + (d-xmin)/(xmax-xmin)*(W-pad.l-pad.r);
-  const Y = v => H-pad.b - (v-ymin)/(ymax-ymin)*(H-pad.t-pad.b);
+  const X = d => pad.l + (d - xmin) / (xmax - xmin) * (W - pad.l - pad.r);
+  const Y = v => H - pad.b - (v - ymin) / (ymax - ymin) * (H - pad.t - pad.b);
 
-  ctx.fillStyle='#fff';
-  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, W, H);
 
-  ctx.strokeStyle='#eee';
-  ctx.lineWidth=1;
+  ctx.strokeStyle = '#eee';
+  ctx.lineWidth = 1;
 
-  ctx.fillStyle='#555';
-  ctx.font='12px system-ui';
-  ctx.textAlign='center';
-  ctx.textBaseline='top';
+  ctx.fillStyle = '#555';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
 
-  for (let d=0; d<=100; d+=10) {
+  for (let d = 0; d <= 100; d += 10) {
     ctx.beginPath();
-    ctx.moveTo(X(d),Y(ymin));
-    ctx.lineTo(X(d),Y(ymax));
+    ctx.moveTo(X(d), Y(ymin));
+    ctx.lineTo(X(d), Y(ymax));
     ctx.stroke();
-    ctx.fillText(String(d), X(d), Y(ymin)+8);
+    ctx.fillText(String(d), X(d), Y(ymin) + 8);
   }
 
-  ctx.textAlign='right';
-  ctx.textBaseline='middle';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
 
-  for (let v=50; v<=400; v+=50) {
+  for (let v = 50; v <= 400; v += 50) {
     ctx.beginPath();
-    ctx.moveTo(X(xmin),Y(v));
-    ctx.lineTo(X(xmax),Y(v));
+    ctx.moveTo(X(xmin), Y(v));
+    ctx.lineTo(X(100), Y(v));
     ctx.stroke();
-    ctx.fillText(String(v), X(xmin)-10, Y(v));
+    ctx.fillText(String(v), X(xmin) - 10, Y(v));
   }
 
-  function line(xs, ys, color, lw=2, dash=[], alpha=1) {
+  function line(xs, ys, color, lw = 2, dash = [], alpha = 1) {
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.strokeStyle=color;
-    ctx.lineWidth=lw;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
     ctx.setLineDash(dash);
     ctx.beginPath();
 
-    xs.forEach((x,i)=>{
-      if(i===0) ctx.moveTo(X(x),Y(ys[i]));
-      else ctx.lineTo(X(x),Y(ys[i]));
+    xs.forEach((x, i) => {
+      if (i === 0) ctx.moveTo(X(x), Y(ys[i]));
+      else ctx.lineTo(X(x), Y(ys[i]));
     });
 
     ctx.stroke();
     ctx.restore();
   }
 
-  for (let idx=0.70; idx<=1.3001; idx+=0.05) {
-    const ys=refY.map(v=>v*idx);
-    const isReference = Math.abs(idx-1)<.001;
+  // Collect right-side labels and draw them later with collision avoidance
+  const rightLabels = [];
+
+  function addRightLabel(text, yValue, color, weight = 'normal', priority = 1) {
+    rightLabels.push({
+      text,
+      desiredY: Y(yValue),
+      color,
+      weight,
+      priority
+    });
+  }
+
+  // Background reference index curves
+  for (let idx = 0.70; idx <= 1.3001; idx += 0.05) {
+    const cleanIdx = Number(idx.toFixed(2));
+    const ys = refY.map(v => v * cleanIdx);
+    const isReference = Math.abs(cleanIdx - 1) < 0.001;
 
     line(
       allDays,
       ys,
       isReference ? '#000' : '#bdbdbd',
-      isReference ? 2.2 : .85,
-      isReference ? [] : [5,4]
+      isReference ? 2.2 : 0.85,
+      isReference ? [] : [5, 4]
     );
 
-    ctx.fillStyle = isReference ? '#000' : '#777';
-    ctx.font='11px system-ui';
-    ctx.textAlign='left';
-    ctx.textBaseline='middle';
-    ctx.fillText(idx.toFixed(2), X(102), Y(ys[100]));
+    addRightLabel(
+      cleanIdx.toFixed(2),
+      refY[100] * cleanIdx,
+      isReference ? '#000' : '#777',
+      isReference ? 'bold' : 'normal',
+      isReference ? 3 : 1
+    );
   }
 
-  line(allDays, refY.map(v=>v*targetIdx), '#d6530a', 2, [6,4]);
+  // Target index curve
+  line(allDays, refY.map(v => v * targetIdx), '#d6530a', 2, [6, 4]);
 
-  ctx.fillStyle='#d6530a';
-  ctx.font='12px system-ui';
-  ctx.textAlign='left';
-  ctx.textBaseline='middle';
-  ctx.fillText(`target ${targetIdx.toFixed(2)}`, X(102), Y(refY[100]*targetIdx));
+  addRightLabel(
+    `target ${targetIdx.toFixed(2)}`,
+    refY[100] * targetIdx,
+    '#d6530a',
+    'bold',
+    5
+  );
 
-  // Current window index line: shows which scaled reference curve the entered values follow best.
+  // Current window index curve
   if (Number.isFinite(r.winIdx)) {
-    line(allDays, refY.map(v=>v*r.winIdx), '#1f77b4', 2.6, [10,6], 0.45);
+    line(allDays, refY.map(v => v * r.winIdx), '#1f77b4', 2.6, [10, 6], 0.45);
 
-    ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle='#1f77b4';
-    ctx.font='bold 12px system-ui';
-    ctx.textAlign='left';
-    ctx.textBaseline='middle';
-    ctx.fillText(`current ${r.winIdx.toFixed(3)}`, X(102), Y(refY[100]*r.winIdx));
-    ctx.restore();
+    addRightLabel(
+      `current ${r.winIdx.toFixed(3)}`,
+      refY[100] * r.winIdx,
+      '#1f77b4',
+      'bold',
+      5
+    );
   }
 
+  // Past measured patient curve
   line(r.pastGrid, r.pastY, '#1f77b4', 3);
 
-  r.x.forEach((d,i)=>{
-    ctx.fillStyle='#1f77b4';
+  r.x.forEach((d, i) => {
+    ctx.fillStyle = '#1f77b4';
     ctx.beginPath();
-    ctx.arc(X(d),Y(r.y[i]),5,0,Math.PI*2);
+    ctx.arc(X(d), Y(r.y[i]), 5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle='#fff';
-    ctx.lineWidth=1.5;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   });
 
-  const rampXs=[];
-  const rampYs=[];
-  const taperXs=[];
-  const taperYs=[];
+  // Future titration / taper curves
+  const rampXs = [];
+  const rampYs = [];
+  const taperXs = [];
+  const taperYs = [];
 
-  r.futDays.forEach((d,i)=>{
-    if(d<=r.rampEnd){
+  r.futDays.forEach((d, i) => {
+    if (d <= r.rampEnd) {
       rampXs.push(d);
       rampYs.push(r.futY[i]);
     }
 
-    if(d>=r.rampEnd){
+    if (d >= r.rampEnd) {
       taperXs.push(d);
       taperYs.push(r.futY[i]);
     }
@@ -483,39 +505,115 @@ function drawChart(r, targetIdx, rampDays) {
 
   line(rampXs, rampYs, '#ff7f0e', 3);
 
-  if (taperXs.length>1) {
+  if (taperXs.length > 1) {
     line(taperXs, taperYs, '#2ca02c', 3);
   }
 
-  ctx.strokeStyle='#333';
-  ctx.lineWidth=1;
+  // Axes
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
   ctx.setLineDash([]);
   ctx.beginPath();
-  ctx.moveTo(X(0),Y(ymin));
-  ctx.lineTo(X(100),Y(ymin));
-  ctx.moveTo(X(0),Y(ymin));
-  ctx.lineTo(X(0),Y(ymax));
+  ctx.moveTo(X(0), Y(ymin));
+  ctx.lineTo(X(100), Y(ymin));
+  ctx.moveTo(X(0), Y(ymin));
+  ctx.lineTo(X(0), Y(ymax));
   ctx.stroke();
 
-  ctx.fillStyle='#333';
-  ctx.font='13px system-ui';
-  ctx.textAlign='center';
-  ctx.textBaseline='top';
-  ctx.fillText('Days after transplantation', X(50), H-38);
+  // Draw right-side labels without overlap
+  function drawRightLabels(labels) {
+    const minGap = 15;
+    const topLimit = pad.t + 8;
+    const bottomLimit = H - pad.b - 8;
+
+    // Sort by visual y-position
+    labels.sort((a, b) => a.desiredY - b.desiredY);
+
+    // First pass: push labels downward if needed
+    labels.forEach((label, i) => {
+      label.y = Math.max(label.desiredY, topLimit);
+
+      if (i > 0 && label.y - labels[i - 1].y < minGap) {
+        label.y = labels[i - 1].y + minGap;
+      }
+    });
+
+    // Second pass: pull labels upward if they exceed bottom limit
+    for (let i = labels.length - 1; i >= 0; i--) {
+      if (labels[i].y > bottomLimit) {
+        labels[i].y = bottomLimit;
+      }
+
+      if (i < labels.length - 1 && labels[i + 1].y - labels[i].y < minGap) {
+        labels[i].y = labels[i + 1].y - minGap;
+      }
+    }
+
+    labels.forEach(label => {
+      const lineStartX = X(100.5);
+      const lineEndX = X(103.5);
+      const textX = X(104.5);
+
+      ctx.save();
+
+      // Small connector line from curve endpoint to shifted label
+      ctx.strokeStyle = label.color;
+      ctx.globalAlpha = label.priority >= 5 ? 0.8 : 0.35;
+      ctx.lineWidth = label.priority >= 5 ? 1.3 : 0.8;
+      ctx.setLineDash(label.priority >= 5 ? [] : [3, 3]);
+
+      ctx.beginPath();
+      ctx.moveTo(lineStartX, label.desiredY);
+      ctx.lineTo(lineEndX, label.y);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+
+      ctx.font = `${label.weight} ${label.priority >= 5 ? 12 : 11}px system-ui`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      const textWidth = ctx.measureText(label.text).width;
+
+      // White background box so labels remain readable
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillRect(textX - 2, label.y - 8, textWidth + 6, 16);
+
+      ctx.fillStyle = label.color;
+      ctx.fillText(label.text, textX, label.y);
+
+      ctx.restore();
+    });
+  }
+
+  drawRightLabels(rightLabels);
+
+  // Axis labels
+  ctx.fillStyle = '#333';
+  ctx.font = '13px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Days after transplantation', X(50), H - 38);
 
   ctx.save();
-  ctx.translate(24, Y((ymin+ymax)/2));
-  ctx.rotate(-Math.PI/2);
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
+  ctx.translate(24, Y((ymin + ymax) / 2));
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   ctx.fillText('CsA trough concentration (ng/ml)', 0, 0);
   ctx.restore();
 
-  ctx.font='bold 14px system-ui';
-  ctx.fillStyle='#173f73';
-  ctx.textAlign='center';
-  ctx.textBaseline='middle';
-  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`, X(50), 24);
+  // Plot title
+  ctx.font = 'bold 14px system-ui';
+  ctx.fillStyle = '#173f73';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(
+    `CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`,
+    X(50),
+    24
+  );
 }
 
 function recompute() {
