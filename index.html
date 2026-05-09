@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CsA Dosing Explorer</title>
+  <title>CsA Exposure Index Explorer</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --ukf-blue:#1f4f8f;
@@ -117,6 +118,21 @@
     th,td { border-bottom:1px solid #eee; padding:6px 8px; text-align:left; white-space:nowrap; }
     th { background:#f7f9fd; position:sticky; top:0; color:var(--ukf-blue-dark); font-size:.82rem; }
     .table-wrap { max-height:380px; overflow:auto; border:1px solid #eee; border-radius:10px; }
+
+    .measurement-table-wrap { max-height:260px; overflow:auto; border:1px solid #eee; border-radius:8px; background:#fff; }
+    .measurement-table { width:100%; border-collapse:collapse; font-size:.76rem; }
+    .measurement-table th,.measurement-table td { border-bottom:1px solid #eee; padding:2px 4px; text-align:left; white-space:nowrap; }
+    .measurement-table th { background:#f7f9fd; position:sticky; top:0; color:var(--ukf-blue-dark); font-size:.74rem; }
+    .measurement-table input { width:100%; padding:3px 5px; border:1px solid #c9d3e6; border-radius:5px; font-size:.76rem; height:25px; }
+    .measurement-table .row-actions { width:24px; text-align:center; }
+    .measurement-table .remove-row { width:20px; height:20px; padding:0; line-height:18px; border-radius:5px; font-size:.78rem; }
+    .mini-button-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .mini-button { padding:5px 8px; margin-top:0; font-size:.76rem; background:#eef3fb; color:var(--ukf-blue-dark); border:1px solid #c9d3e6; }
+    .compact-file { margin-top:8px; }
+    .compact-file input[type="file"] { padding:5px 6px; font-size:.78rem; }
+    .mini-button:hover { background:#dfe9f8; }
+    .danger-button { color:#8a1f1f; background:#fff0f0; border-color:#ffd0d0; }
+    .danger-button:hover { background:#ffe1e1; }
     button {
       border:0;
       background:var(--ukf-blue-dark);
@@ -159,7 +175,7 @@
 <div class="wrap">
 
   <div class="topbar">
-    <h1>CsA Dosing Explorer</h1>
+    <h1>CsA Exposure Index Explorer</h1>
     <span class="topbar-sub">Wilcken et al. · University Medical Center Freiburg</span>
   </div>
 
@@ -176,20 +192,39 @@
     <aside>
       <h2>Patient Measurements</h2>
 
-      <label>Days post-transplant</label>
-      <input id="days" type="text" value="0, 1, 2, 3, 5, 7, 9, 11, 14, 17, 21, 25, 28, 32, 35, 39, 42" />
-      <div class="small">Comma-separated integers, ≥ 0. Values beyond day 100 are used for fitting but not displayed. Duplicate days allowed.</div>
+      <div class="small" style="margin-bottom:8px;">
+        Enter one measurement per row. A new empty row is added automatically when you fill the last row.
+        Days must be ≥ 0; values beyond day 100 may be used for fitting but are not displayed beyond day 100.
+      </div>
 
-      <label>CsA trough levels (ng/ml)</label>
-      <input id="vals" type="text" value="280, 310, 180, 260, 240, 195, 310, 210, 230, 185, 220, 195, 185, 200, 175, 180, 170" />
-      <div class="small">Same order as days above.</div>
+      <div class="measurement-table-wrap">
+        <table class="measurement-table" id="measurementTable">
+          <thead>
+            <tr>
+              <th style="width:42%;">Day</th>
+              <th style="width:48%;">CsA trough (ng/ml)</th>
+              <th class="row-actions"> </th>
+            </tr>
+          </thead>
+          <tbody id="measurementBody"></tbody>
+        </table>
+      </div>
+      <div class="mini-button-row">
+        <button type="button" class="mini-button" id="addMeasurementBtn">+ Add row</button>
+        <button type="button" class="mini-button danger-button" id="clearMeasurementsBtn">Clear</button>
+      </div>
+      <div class="compact-file">
+        <label style="margin-top:8px;">Upload patient measurements CSV/XLSX</label>
+        <input id="measurementCsvUpload" type="file" accept=".csv,text/csv,.tsv,text/tab-separated-values,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
+        <div class="small">Two columns required: <code>day</code> and <code>csa_ngml</code> or <code>value</code>. CSV/TSV files and Excel files (<code>.xlsx</code>, <code>.xls</code>) are accepted. Excel import uses the first worksheet.</div>
+      </div>
 
       <h2>AUC Reconstruction</h2>
 
       <label>Reconstruction method</label>
       <select id="reconMethod">
-        <option value="linear" selected>Linear interpolation (fast, default)</option>
-        <option value="lowess">LOWESS smoothing (frac=0.3, it=3)</option>
+        <option value="lowess" selected>LOWESS smoothing (frac=0.3, it=3; as used in the publication)</option>
+        <option value="linear">Linear interpolation (sensitivity / fast)</option>
       </select>
 
       <div class="cb-row">
@@ -202,7 +237,7 @@
 
       <div class="method-note" id="methodNote"></div>
 
-      <h2>Dosing Target</h2>
+      <h2>Exposure Target</h2>
 
       <label>Target exposure index: <b id="targetLabel">1.05</b></label>
       <input id="target" type="range" min="0.70" max="1.30" value="1.05" step="0.01" />
@@ -253,13 +288,13 @@
 
 <script>
 /* ============================================================
-   CsA Dosing Explorer — paper-conform JS implementation
+   CsA Exposure Index Explorer — publication-aligned JS implementation
    
    Key differences from generic version:
-   1. IQR outlier filter applied BEFORE LOWESS, k=2 (paper default)
+   1. IQR outlier filter applied BEFORE LOWESS, k=2 (as used in the publication)
       identical to Python _iqr_inlier_mask(y, k=2)
    2. LOWESS: statsmodels-like local linear regression,
-      frac=0.3, it=3 robustifying iterations (paper: Appendix S1)
+      frac=0.3, it=3 robustifying iterations (publication: Appendix S1)
    3. After LOWESS: interpolation ONLY within convex hull of
       observed days (no extrapolation) — NaN outside, like Python
    4. Reference curve: loaded from pre-computed CSV (Python LOWESS)
@@ -333,7 +368,7 @@ function linearInterp(x, xp, fp) {
   return fp[lo] + t*(fp[hi]-fp[lo]);
 }
 
-/** Linear interpolation WITHIN convex hull only — NaN outside (paper-conform) */
+/** Linear interpolation WITHIN convex hull only — NaN outside (publication-aligned) */
 function linearInterpHull(x, xp, fp) {
   if (!xp.length) return NaN;
   if (x < xp[0] || x > xp[xp.length-1]) return NaN;   // no extrapolation
@@ -360,7 +395,7 @@ function zone(idx) {
   return 'well above reference';
 }
 
-// ── IQR outlier filter — paper-conform (k=2) ─────────────────
+// ── IQR outlier filter — publication-aligned (k=2) ─────────────────
 /**
  * Identical to Python _iqr_inlier_mask(y, k=2):
  *   lo = Q1 - k*IQR
@@ -448,14 +483,14 @@ function wlsFit(xObs, yObs, x0, weights) {
 }
 
 /**
- * EXACT replica of _lowess_on_grid from the paper notebook (Appendix S1):
+ * EXACT replica of _lowess_on_grid from the publication notebook (Appendix S1):
  *   1. IQR filter k=2 applied before (done in reconstructCurve)
  *   2. statsmodels lowess(y, x, frac=0.3, it=3) at observed points
  *   3. Linear interpolation onto integer day grid WITHIN convex hull only
  *      (no extrapolation — NaN outside observed range)
  *
  * Note: with few measurements (~4-10), frac=0.3 → span=2-3 → nearly
- * identical to linear interpolation. This is correct paper behavior.
+ * identical to linear interpolation. This is correct publication behavior.
  */
 function lowessOnGrid(xObs, yObs, grid, frac=0.3, it=3) {
   const n = xObs.length;
@@ -493,7 +528,7 @@ function lowessOnGrid(xObs, yObs, grid, frac=0.3, it=3) {
 }
 
 /**
- * Patient curve reconstruction — exact paper implementation (Appendix S1):
+ * Patient curve reconstruction — exact publication implementation (Appendix S1):
  *  1. IQR outlier filter k=2 on raw values (before smoothing)
  *  2. LOWESS frac=0.3, it=3 at observed points, then linear interpolation
  *     within convex hull only — identical to _lowess_on_grid in notebook
@@ -612,6 +647,24 @@ function drawChart(r, targetIdx, rampDays) {
     ctx.stroke(); ctx.restore();
   }
 
+  function areaUnderCurve(xs, ys, color, alpha=0.12) {
+    const pts = xs.map((x,i)=>({x, y:ys[i]})).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+    if (pts.length < 2) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(X(pts[0].x), Y(ymin));
+    pts.forEach((p,i)=>{
+      if (i === 0) ctx.lineTo(X(p.x), Y(p.y));
+      else ctx.lineTo(X(p.x), Y(p.y));
+    });
+    ctx.lineTo(X(pts[pts.length-1].x), Y(ymin));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
   // (therapeutic window removed)
 
   // Index background lines
@@ -634,7 +687,8 @@ function drawChart(r, targetIdx, rampDays) {
     rightLabels.push({text:`now ${r.winIdx.toFixed(3)}`, yVal:refY[100]*r.winIdx, color:'#1f77b4', bold:true, pri:5});
   }
 
-  // Observed course
+  // Observed AUC area + observed course
+  areaUnderCurve(r.grid, r.gridY, '#1f77b4', 0.13);
   line(r.grid, r.gridY, '#1f77b4', 3);
   r.xFilt.forEach((d,i)=>{
     ctx.fillStyle='#1f77b4'; ctx.beginPath();
@@ -747,15 +801,213 @@ function drawChart(r, targetIdx, rampDays) {
 
   ctx.font='bold 13px system-ui'; ctx.fillStyle='#173f73';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(`CsA Dosing Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`, X(50), 28);
+  ctx.fillText(`CsA Exposure Index Explorer – Target index ${targetIdx.toFixed(2)} – Titration ${rampDays} days`, X(50), 28);
+}
+
+
+// ── Measurement table helpers ────────────────────────────────
+const defaultMeasurements = [
+  [0,280],[1,310],[2,180],[3,260],[5,240],[7,195],[9,310],[11,210],[14,230],
+  [17,185],[21,220],[25,195],[28,185],[32,200],[35,175],[39,180],[42,170]
+];
+
+function addMeasurementRow(day='', value='') {
+  const tbody = document.getElementById('measurementBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="measurement-day" type="number" min="0" step="1" value="${day}" inputmode="numeric" /></td>
+    <td><input class="measurement-value" type="number" min="0" step="0.1" value="${value}" inputmode="decimal" /></td>
+    <td class="row-actions"><button type="button" class="mini-button danger-button remove-row" title="Remove row">×</button></td>
+  `;
+  tbody.appendChild(tr);
+
+  tr.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      ensureTrailingEmptyRow();
+      recompute();
+    });
+  });
+  tr.querySelector('.remove-row').addEventListener('click', () => {
+    tr.remove();
+    ensureMinimumRows();
+    ensureTrailingEmptyRow();
+    recompute();
+  });
+}
+
+function ensureMinimumRows() {
+  const tbody = document.getElementById('measurementBody');
+  if (!tbody.children.length) addMeasurementRow('', '');
+}
+
+function isRowFilled(tr) {
+  const d = tr.querySelector('.measurement-day').value.trim();
+  const v = tr.querySelector('.measurement-value').value.trim();
+  return d !== '' || v !== '';
+}
+
+function ensureTrailingEmptyRow() {
+  const tbody = document.getElementById('measurementBody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (!rows.length) { addMeasurementRow('', ''); return; }
+
+  const last = rows[rows.length - 1];
+  if (isRowFilled(last)) addMeasurementRow('', '');
+
+  // Keep only one trailing empty row, so the table does not grow with unused blanks.
+  const updated = Array.from(tbody.querySelectorAll('tr'));
+  for (let i = updated.length - 2; i >= 0; i--) {
+    if (!isRowFilled(updated[i]) && !isRowFilled(updated[i+1])) updated[i].remove();
+  }
+}
+
+function getMeasurementData() {
+  const rows = Array.from(document.querySelectorAll('#measurementBody tr'));
+  const rawX = [];
+  const rawY = [];
+
+  rows.forEach((tr, idx) => {
+    const dayRaw = tr.querySelector('.measurement-day').value.trim();
+    const valRaw = tr.querySelector('.measurement-value').value.trim();
+    if (dayRaw === '' && valRaw === '') return;
+    if (dayRaw === '' || valRaw === '') throw new Error(`Measurement row ${idx + 1} is incomplete.`);
+    const day = Number(dayRaw);
+    const val = Number(valRaw);
+    if (!Number.isFinite(day) || !Number.isFinite(val)) throw new Error(`Measurement row ${idx + 1} contains invalid numbers.`);
+    rawX.push(day);
+    rawY.push(val);
+  });
+
+  return { rawX, rawY };
+}
+
+function loadDefaultMeasurements() {
+  const tbody = document.getElementById('measurementBody');
+  tbody.innerHTML = '';
+  defaultMeasurements.forEach(([d,v]) => addMeasurementRow(d, v));
+  addMeasurementRow('', '');
+}
+
+function splitDelimitedLine(line, delimiter) {
+  const out = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (ch === delimiter && !inQ) { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+function detectDelimiter(headerLine) {
+  const candidates = [',', ';', '\t'];
+  let best = ',';
+  let bestCount = -1;
+  for (const d of candidates) {
+    const count = splitDelimitedLine(headerLine, d).length;
+    if (count > bestCount) { best = d; bestCount = count; }
+  }
+  return best;
+}
+
+function normalizeHeader(h) {
+  return h.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+function parseMeasurementRows(headersRaw, dataRows, sourceLabel='file') {
+  const headers = headersRaw.map(h => normalizeHeader(String(h ?? '')));
+
+  const dayNames = ['day','days','post_transplant_day','days_post_transplant','day_post_transplant','d'];
+  const valNames = ['csa_ngml','csa_trough_ngml','csa_trough','trough_ngml','value','values','csa','level','levels','ng_ml','ngml'];
+
+  let dayIdx = headers.findIndex(h => dayNames.includes(h));
+  let valIdx = headers.findIndex(h => valNames.includes(h));
+
+  // Fallback: exactly two columns -> first = day, second = value
+  if ((dayIdx < 0 || valIdx < 0) && headers.length === 2) {
+    dayIdx = 0;
+    valIdx = 1;
+  }
+
+  if (dayIdx < 0) throw new Error(`${sourceLabel} must contain a day column.`);
+  if (valIdx < 0) throw new Error(`${sourceLabel} must contain a CsA value column, e.g. csa_ngml or value.`);
+
+  const rows = [];
+  for (let i = 0; i < dataRows.length; i++) {
+    const cells = dataRows[i];
+    if (!cells || cells.every(c => String(c ?? '').trim() === '')) continue;
+
+    const dayRaw = String(cells[dayIdx] ?? '').trim().replace(',', '.');
+    const valRaw = String(cells[valIdx] ?? '').trim().replace(',', '.');
+    const day = Number(dayRaw);
+    const val = Number(valRaw);
+
+    if (!Number.isFinite(day) || !Number.isFinite(val)) {
+      throw new Error(`Invalid number in ${sourceLabel} row ${i + 2}.`);
+    }
+    if (day < 0 || val < 0) {
+      throw new Error(`Negative value in ${sourceLabel} row ${i + 2}.`);
+    }
+    rows.push([day, val]);
+  }
+
+  if (rows.length < 2) throw new Error(`${sourceLabel} must contain at least two valid measurement rows.`);
+  return rows;
+}
+
+function parseMeasurementCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim() !== '');
+  if (lines.length < 2) throw new Error('Measurement CSV needs a header and at least one data row.');
+
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = splitDelimitedLine(lines[0], delimiter);
+  const dataRows = lines.slice(1).map(line => splitDelimitedLine(line, delimiter).map(x => x.trim()));
+  return parseMeasurementRows(headers, dataRows, 'Measurement CSV');
+}
+
+async function parseMeasurementExcel(file) {
+  if (typeof XLSX === 'undefined') {
+    throw new Error('Excel import library could not be loaded. Please check your internet connection or use CSV instead.');
+  }
+  const buf = await file.arrayBuffer();
+  const workbook = XLSX.read(buf, { type: 'array', cellDates: false });
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    throw new Error('Excel file does not contain a worksheet.');
+  }
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+  const nonEmpty = matrix.filter(row => row && row.some(cell => String(cell ?? '').trim() !== ''));
+  if (nonEmpty.length < 2) throw new Error('Measurement Excel file needs a header and at least one data row.');
+  return parseMeasurementRows(nonEmpty[0], nonEmpty.slice(1), 'Measurement Excel file');
+}
+
+async function parseMeasurementFile(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) return parseMeasurementExcel(file);
+  return parseMeasurementCSV(await file.text());
+}
+
+function loadMeasurements(rows) {
+  const tbody = document.getElementById('measurementBody');
+  tbody.innerHTML = '';
+  rows.forEach(([d,v]) => addMeasurementRow(d, v));
+  addMeasurementRow('', '');
+  recompute();
+}
+
+function clearMeasurements() {
+  const tbody = document.getElementById('measurementBody');
+  tbody.innerHTML = '';
+  addMeasurementRow('', '');
+  recompute();
 }
 
 // ── Main compute ──────────────────────────────────────────────
 function recompute() {
   document.getElementById('errbox').style.display='none';
   try {
-    const rawX      = parseList(document.getElementById('days').value);
-    const rawY      = parseList(document.getElementById('vals').value);
+    const { rawX, rawY } = getMeasurementData();
     const targetIdx = Number(document.getElementById('target').value);
     const rampDays  = Number(document.getElementById('ramp').value);
     const method    = document.getElementById('reconMethod').value;
@@ -766,7 +1018,6 @@ function recompute() {
 
     if (rawX.length !== rawY.length) throw new Error(`Days count (${rawX.length}) ≠ CsA values count (${rawY.length}).`);
     if (rawX.length < 2) throw new Error('Please enter at least 2 measurement time points.');
-    if (rawX[0] < 0) throw new Error('Days must be ≥ 0. Pre-transplant values are not supported.');
     // Days > 100 are allowed for fitting — plot still displays 0–100 only
     const sortedX = [...rawX].sort((a,b)=>a-b);
     if (sortedX[0] < 0) throw new Error('Days must be ≥ 0.');
@@ -781,7 +1032,7 @@ function recompute() {
     } else {
       mn.style.borderLeftColor = '';
       mn.textContent = recon.method==='lowess'
-        ? `LOWESS smoothing applied (frac=0.3, it=3, IQR filter k=2).`
+        ? `LOWESS smoothing applied (frac=0.3, it=3), matching the reconstruction described in the publication.`
         : `Linear interpolation applied${useFilter?' with IQR outlier filter k=2':''}.`;
     }
 
@@ -826,6 +1077,7 @@ function recompute() {
       <table>
         <tr><th>Parameter</th><th>Value</th></tr>
         <tr><td>Window index day 0–${lastDay}</td><td><b>${fmt(winIdx,3)}</b> – ${zone(winIdx)}</td></tr>
+        <tr><td>Index formula</td><td>Patient AUC / Reference AUC = ${fmt(aucPat,1)} / ${fmt(aucRef,1)} = <b>${fmt(winIdx,3)}</b></td></tr>
         <tr><td>Reconstruction method</td><td><b>${recon.method==='lowess'?'LOWESS (frac=0.3, it=3)':'Linear interpolation'}</b>${useFilter?', IQR filter k=2':''}</td></tr>
         <tr><td>Patient AUC (current window)</td><td><b>${fmt(aucPat,1)}</b> ng/ml·d</td></tr>
         <tr><td>Reference AUC (current window)</td><td><b>${fmt(aucRef,1)}</b> ng/ml·d</td></tr>
@@ -906,8 +1158,25 @@ async function init() {
     st.textContent='Synthetic reference curve active – upload your csa_reference_curve.csv via the sidebar or add it to data/.';
   }
 
-  ['days','vals','target','ramp'].forEach(id=>{
+  loadDefaultMeasurements();
+
+  ['target','ramp'].forEach(id=>{
     document.getElementById(id).addEventListener('input',recompute);
+  });
+  document.getElementById('addMeasurementBtn').addEventListener('click', () => { addMeasurementRow('', ''); });
+  document.getElementById('clearMeasurementsBtn').addEventListener('click', clearMeasurements);
+  document.getElementById('measurementCsvUpload').addEventListener('change', async ev => {
+    const file = ev.target.files[0]; if (!file) return;
+    try {
+      const rows = await parseMeasurementFile(file);
+      loadMeasurements(rows);
+      document.getElementById('status').className = 'status';
+      document.getElementById('status').textContent = `Patient measurements loaded from ${file.name} (${rows.length} rows).`;
+      document.getElementById('errbox').style.display = 'none';
+    } catch (e) {
+      document.getElementById('errbox').textContent = '⛔ Measurement import error: ' + e.message;
+      document.getElementById('errbox').style.display = 'block';
+    }
   });
   ['showTable','showAll','reconMethod','useOutlierFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change',recompute);
