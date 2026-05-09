@@ -1151,11 +1151,11 @@ async function init() {
   } catch(_) {}
 
   const st = document.getElementById('status');
-  if (refSource==='cohort') {
-    st.textContent=`Cohort reference curve loaded from data/csa_reference_curve.csv | AUC (day 0–100): ${trapz(allDays,refY).toFixed(0)} ng/ml·d`;
+  if (refSource === 'cohort') {
+    st.textContent = 'Cohort reference curve loaded as used in the publication.';
   } else {
-    st.className='status warn';
-    st.textContent='Synthetic reference curve active – upload your csa_reference_curve.csv via the sidebar or add it to data/.';
+    st.className = 'status warn';
+    st.textContent = 'Synthetic reference curve active – upload your csa_reference_curve.csv via the sidebar or add it to data/.';
   }
 
   loadDefaultMeasurements();
